@@ -1,7 +1,7 @@
 <?php
 require __DIR__ . '/lib.php';
 need_viewer();
-$titles = db()->query('SELECT id,type,title,description,year,thumb,poster,created FROM titles ORDER BY created DESC')->fetchAll();
+$titles = db()->query('SELECT id,type,title,description,year,thumb,poster,intro_start,intro_end,outro,created FROM titles ORDER BY created DESC')->fetchAll();
 $vids = db()->query("SELECT id,title_id,season,episode,name,file,duration FROM videos WHERE status='ready' ORDER BY season,episode,id")->fetchAll();
 $subs = db()->query('SELECT video_id,label,lang,file FROM subtitles ORDER BY id')->fetchAll();
 $subBy = [];
@@ -31,6 +31,9 @@ $res = [];
 foreach ($titles as $t) {
     if (empty($vidBy[$t['id']])) continue;
     $res[] = ['id' => (int)$t['id'], 'type' => $t['type'], 'title' => $t['title'], 'description' => $t['description'],
-              'year' => $t['year'] ? (int)$t['year'] : null, 'thumb' => media_url($t['thumb']), 'poster' => media_url($t['poster']), 'videos' => $vidBy[$t['id']]];
+              'year' => $t['year'] ? (int)$t['year'] : null, 'thumb' => media_url($t['thumb']), 'poster' => media_url($t['poster']), 'videos' => $vidBy[$t['id']],
+              // saltar intro / créditos (segundos); outro = cuánto duran los créditos contando desde el final
+              'skip' => ['intro' => $t['intro_start'] !== null ? [(int)$t['intro_start'], (int)$t['intro_end']] : null,
+                         'outro' => $t['outro'] !== null ? (int)$t['outro'] : null]];
 }
 out($res);

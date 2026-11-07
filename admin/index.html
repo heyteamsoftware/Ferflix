@@ -37,6 +37,12 @@ textarea{min-height:70px;resize:vertical}
 .lib{display:flex;gap:16px}
 .lib .th{width:160px;aspect-ratio:16/9;background:#333 center/cover;border-radius:4px;flex:none}
 .lib .info{flex:1;min-width:0}
+.disk{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--muted);margin-bottom:18px}
+.disk .bar{flex:1;max-width:340px;height:8px;background:#333;border-radius:4px;overflow:hidden}
+.disk .bar i{display:block;height:100%;background:#46d369;border-radius:4px}
+.disk.warn .bar i{background:#f5c542}.disk.crit .bar i{background:var(--red)}.disk.crit b{color:#ff6b6b}
+.skip{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin:10px 0 4px;padding:8px 10px;background:#262626;border-radius:6px}
+.skip input{width:64px;padding:5px 7px;font-size:13px;text-align:center}
 .lib .po{width:62px;aspect-ratio:2/3;background:#333 center/cover;border-radius:4px;flex:none;display:flex;align-items:center;justify-content:center;font-size:10px;color:#888;text-align:center}
 .vid{display:flex;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line);font-size:13px;flex-wrap:wrap}
 .vid .nm{flex:1;min-width:140px}
@@ -56,6 +62,7 @@ textarea{min-height:70px;resize:vertical}
 <div id="panel" class="hide">
 <header><b>FERFLIX</b><a class="on" data-tab="up">Subir</a><a data-tab="lib">Biblioteca</a><span class="sp"></span><a href="../" target="_blank">Ver web ↗</a><a id="logout">Salir</a></header>
 <main>
+  <div class="disk" id="disk"></div>
   <section id="tab-up">
     <div class="card">
       <h2>1 · ¿Qué vas a subir?</h2>
@@ -104,11 +111,11 @@ const api=async(a,body,isForm,timeoutMs)=>{
   const j=await r.json(); if(!r.ok)throw new Error(j.error||'Error'); return j;
 };
 function show(ok){$('#login').classList.toggle('hide',ok);$('#panel').classList.toggle('hide',!ok)}
-async function init(){const j=await (await fetch('../api/auth.php')).json();show(j.admin);if(j.admin)loadSeries()}
+async function init(){const j=await (await fetch('../api/auth.php')).json();show(j.admin);if(j.admin){loadSeries();loadDisk()}}
 $('#lbtn').onclick=async()=>{
   const r=await fetch('../api/auth.php?action=login',{method:'POST',body:JSON.stringify({password:$('#pw').value})});
   const j=await r.json().catch(()=>({}));
-  if(r.ok){show(true);loadSeries()}
+  if(r.ok){show(true);loadSeries();loadDisk()}
   else if(j.locked)$('#lerr').textContent=`Demasiados intentos. Vuelve en ${Math.ceil(j.locked/60)} min.`;
   else $('#lerr').textContent=`Contraseña incorrecta. Te queda ${j.left??0} intento.`;
 };
@@ -223,6 +230,11 @@ async function uploadVideo(it,titleId,el,isMovie){
 $('#stop').onclick=()=>{STOP=true;$('#stop').disabled=true;$('#stop').textContent='Cancelando…'};
 $('#go').onclick=async()=>{
   if(UPLOADING||!ITEMS.length)return;
+  // ¿cabe? Mientras se procesa conviven el original y el MP4 nuevo: hace falta ~el doble
+  await loadDisk();
+  if(DISK){const need=ITEMS.filter(i=>i.state!=='done').reduce((a,i)=>a+i.file.size,0);
+    if(need>DISK.free-1073741824){alert(`No hay espacio en el servidor: vas a subir ${gb(need)} y solo quedan ${gb(DISK.free)} libres. Borra alguna película en Biblioteca.`);return}
+    if(need*2>DISK.free-1073741824&&!confirm(`Quedan ${gb(DISK.free)} libres y vas a subir ${gb(need)}. Al procesarse puede ocupar el doble un rato y llenar el disco. ¿Subir igualmente?`))return}
   $('#go').disabled=true; $('#gmsg').textContent='';
   UPLOADING=true; STOP=false; ITEMS.forEach(i=>i.cancel=false);
   $('#stop').classList.remove('hide'); $('#stop').disabled=false; $('#stop').textContent='✕ Cancelar subida';
@@ -257,13 +269,26 @@ $('#go').onclick=async()=>{
     $('#gmsg').innerHTML=STOP?'<span class="warn">Subida cancelada.</span>':failed?`<span class="err">${failed} con error</span>`:'<span class="ok">Todo subido. Mira el estado en Biblioteca.</span>';
     if(!failed){ITEMS=ITEMS.filter(i=>i.state!=='done');SUBS=[];setTimeout(()=>{build();loadSeries()},2500)}
   }catch(err){$('#gmsg').innerHTML='<span class="err">'+esc(err.message)+'</span>'}
-  UPLOADING=false; $('#stop').classList.add('hide');
+  UPLOADING=false; $('#stop').classList.add('hide'); loadDisk();
   $('#go').disabled=!ITEMS.length;
 };
 
 /* ---------- biblioteca ---------- */
 const left=s=>s<60?'menos de 1 min':s<3600?`quedan ~${Math.ceil(s/60)} min`:`quedan ~${Math.floor(s/3600)} h ${Math.round(s%3600/60)} min`;
 let poll;
+// refresca la biblioteca, salvo si se está escribiendo en ella (se perdería lo escrito)
+function pollLib(){if(document.activeElement&&document.activeElement.closest('#libBox'))poll=setTimeout(pollLib,3000);else loadLib()}
+const mmss=s=>s==null?'':`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+const secs=v=>{v=String(v||'').trim();if(!v)return '';const p=v.split(':').map(Number);if(p.some(isNaN))throw new Error(`Tiempo no válido: ${v}`);return p.reduce((a,b)=>a*60+b,0)};
+/* ---------- espacio en disco ---------- */
+let DISK=null;
+const gb=b=>(b/1073741824).toFixed(1).replace('.',',')+' GB';
+async function loadDisk(){
+  try{DISK=await api('disk')}catch{return}
+  const used=DISK.total-DISK.free, pc=used/DISK.total*100, el=$('#disk');
+  el.className='disk'+(DISK.free<5*1073741824?' crit':DISK.free<12*1073741824?' warn':'');
+  el.innerHTML=`💾 Disco del servidor <span class="bar"><i style="width:${pc.toFixed(1)}%"></i></span><b>${gb(DISK.free)} libres</b> de ${gb(DISK.total)}`;
+}
 async function loadLib(){
   clearTimeout(poll);
   const T=await api('list');
@@ -278,6 +303,11 @@ async function loadLib(){
         <label class="btn s" style="margin:0;color:#fff">Cambiar portada<input type="file" accept="image/*" hidden data-thumb="${t.id}"></label>
         ${t.type==='movie'?`<label class="btn s" style="margin:0;color:#fff">Cambiar póster<input type="file" accept="image/*" hidden data-poster="${t.id}"></label>`:''}
         <button class="btn d" data-delt="${t.id}">Eliminar</button></div>
+      <div class="skip" data-skip="${t.id}">⏭ ${t.type==='series'?`Intro de <input data-k="intro_start" value="${mmss(t.intro_start)}" placeholder="0:00"> a
+        <input data-k="intro_end" value="${mmss(t.intro_end)}" placeholder="1:30"> ·`:''}
+        Créditos: los últimos <input data-k="outro" value="${mmss(t.outro)}" placeholder="${t.type==='series'?'0:45':'6:00'}">
+        <button class="btn s" data-saveskip="${t.id}">Guardar</button>
+        <small>${t.type==='series'?'(iguales para todos los capítulos)':''}</small></div>
       ${t.videos.map(v=>`<div class="vid" data-vid="${v.id}">
         ${t.type==='series'?`<input style="width:56px" value="${v.season??''}" data-vf="season" placeholder="T"><input style="width:56px" value="${v.episode??''}" data-vf="episode" placeholder="E">`:''}
         <input class="nm" value="${esc(v.name)}" data-vf="name">
@@ -288,7 +318,8 @@ async function loadLib(){
         ${v.subs.map(s=>`<span class="chip">${esc(s.label)} <a href="#" data-dels="${s.id}" style="color:#f88;text-decoration:none">✕</a></span>`).join('')}
       </div>`).join('')}
     </div></div></div>`).join('')||'<p style="color:var(--muted)">Aún no hay contenido.</p>';
-  if(T.some(t=>t.videos.some(v=>v.status==='processing')))poll=setTimeout(loadLib,5000);
+  if(T.some(t=>t.videos.some(v=>v.status==='processing')))poll=setTimeout(pollLib,5000);
+  loadDisk();
 }
 $('#cleanBtn').onclick=async()=>{
   if(!confirm('Se borrarán del servidor los archivos que ya no pertenecen a ninguna película o serie (solo los de más de 24 h). ¿Seguir?'))return;
@@ -299,6 +330,9 @@ $('#libBox').addEventListener('click',async e=>{
   if(d.delt&&confirm('¿Eliminar este título y todos sus archivos?')){await api('delete_title',{id:d.delt});loadLib()}
   if(d.delv&&confirm('¿Eliminar este vídeo?')){await api('delete_video',{id:d.delv});loadLib()}
   if(d.dels){e.preventDefault();await api('delete_sub',{id:d.dels});loadLib()}
+  if(d.saveskip){const r=e.target.closest('.skip'), g=k=>{const i=r.querySelector(`[data-k=${k}]`);return i?secs(i.value):''};
+    await api('skip_save',{id:d.saveskip,intro_start:g('intro_start'),intro_end:g('intro_end'),outro:g('outro')});
+    e.target.textContent='✓ Guardado';setTimeout(()=>e.target.textContent='Guardar',1200);return}
   if(d.savev){const r=e.target.closest('.vid');const g=f=>r.querySelector(`[data-vf=${f}]`)?.value??'';await api('video_save',{id:d.savev,name:g('name'),season:g('season'),episode:g('episode')});e.target.textContent='✓';setTimeout(()=>e.target.textContent='Guardar',900)}
   if(d.tmdb){const q=prompt('¿Cómo se llama? (puedes añadir el año al final, p. ej. «Ex Machina 2014»)',d.q);if(q===null)return;
     const ym=q.match(/\s((?:19|20)\d{2})$/);e.target.textContent='Buscando…';

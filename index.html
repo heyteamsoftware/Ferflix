@@ -181,6 +181,55 @@ main.flat{margin-top:0;padding-top:96px}
 @media(max-height:620px) and (min-width:901px){.feed{display:none}}
 @media(max-width:900px){#app{display:flex;flex-direction:column}.hero{order:1}main{order:3;margin-top:0}
   .feed{order:2;position:static;width:auto;max-height:340px;margin:0 4% 28px;backdrop-filter:none}}
+/* ===== saltar intro / siguiente episodio / saltar créditos ===== */
+.skipb{position:absolute;right:44px;bottom:118px;z-index:6;display:none;background:#000b;border:2px solid #ffffffb3;color:#fff;padding:12px 24px;border-radius:6px;font-weight:700;font-size:17px;backdrop-filter:blur(6px);transition:background .15s,color .15s}
+.skipb.on{display:block;animation:fadeup .3s ease}.skipb:hover{background:#fff;color:#000}
+@keyframes fadeup{from{opacity:0;transform:translateY(10px)}}
+.upnext{position:absolute;right:44px;bottom:118px;z-index:7;display:none;gap:16px;align-items:center;width:min(540px,calc(100vw - 60px));padding:14px;border-radius:12px;
+  background:#141414f2;border:1px solid #ffffff22;box-shadow:0 20px 50px #000c;backdrop-filter:blur(10px)}
+.upnext.on{display:flex;animation:fadeup .35s ease}
+.upnext .unth{flex:none;width:180px;aspect-ratio:16/9;border-radius:8px;background:#2a2a2a center/cover}
+.upnext small{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.6px}
+.upnext b{display:block;font-size:16px;margin:4px 0 12px;line-height:1.3}
+.upnext .unbtns{display:flex;gap:8px;flex-wrap:wrap}.upnext .btn{padding:8px 16px;font-size:15px}
+.upnext #unGo{position:relative;overflow:hidden}
+.upnext #unGo::before{content:"";position:absolute;inset:0;background:#0000001f;transform-origin:left;animation:cd 10s linear forwards}
+@keyframes cd{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+#player.paused .upnext #unGo::before{animation-play-state:paused}
+/* ===== colores del póster ===== */
+.hero{--tint:20,20,20}
+.hero::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(90deg,rgba(var(--tint),.62) 0,rgba(var(--tint),.22) 42%,transparent 70%)}
+.hero::after{z-index:1}
+.grid .card:hover{box-shadow:0 14px 36px rgba(var(--glow,0,0,0),.7),0 0 0 2px rgba(var(--glow,255,255,255),.75)}
+.box{--tint:24,24,24}
+.box .top::after{background:linear-gradient(0deg,color-mix(in srgb,rgb(var(--tint)) 30%,#181818) 0,transparent 55%)}
+.box .body{background:linear-gradient(180deg,color-mix(in srgb,rgb(var(--tint)) 30%,#181818) 0,#181818 340px)}
+.box .meta{color:rgb(var(--tint))}.box .meta{filter:brightness(1.6) saturate(1.2)}
+/* ===== intro FERFLIX ===== */
+#intro{position:fixed;inset:0;z-index:400;background:#000;display:none;align-items:center;justify-content:center;overflow:hidden;cursor:pointer;transition:opacity .45s}
+#intro.on{display:flex}#intro.out{opacity:0}
+#intro::before{content:"";position:absolute;inset:-20%;background:radial-gradient(circle,#e509144d 0,transparent 55%);opacity:0;animation:iburst 1.4s 1.55s ease-out forwards}
+#intro .iw{position:relative;display:flex;font-weight:900;font-size:clamp(56px,13vw,180px);letter-spacing:.02em;color:var(--red);animation:izoom 3s cubic-bezier(.7,0,.84,0) forwards}
+#intro .iw span{display:inline-block;opacity:0;transform:scale(2.8) translateY(-8%);filter:blur(16px);text-shadow:0 0 28px #e50914b3,0 0 90px #e5091466;
+  animation:iletter .6s cubic-bezier(.2,.9,.3,1.25) forwards;animation-delay:calc(.15s + var(--i) * .075s)}
+#intro .iw::after{content:"";position:absolute;inset:-20% -40%;background:linear-gradient(100deg,transparent 42%,#ffffff8c 50%,transparent 58%);transform:translateX(-130%);animation:isweep 1s .85s ease-in-out forwards;mix-blend-mode:overlay}
+#intro .skipi{position:absolute;bottom:26px;right:30px;color:#ffffff59;font-size:13px}
+@keyframes iletter{to{opacity:1;transform:none;filter:none}}
+@keyframes isweep{to{transform:translateX(130%)}}
+@keyframes izoom{0%,63%{transform:scale(1);opacity:1}100%{transform:scale(10);opacity:0}}
+@keyframes iburst{35%{opacity:1}100%{opacity:0}}
+/* ===== avatares animados y "viendo ahora" ===== */
+@keyframes wig{0%,100%{transform:rotate(0)}20%{transform:rotate(-16deg) scale(1.15)}45%{transform:rotate(12deg) scale(1.15)}70%{transform:rotate(-6deg) scale(1.08)}}
+.me:hover .av,.feed .ph:hover .pav,.animals button:hover,.sug div:hover span{animation:wig .65s ease}
+.feed .pav{position:relative}
+.feed .pav.live::after{content:"";position:absolute;right:-1px;bottom:-1px;width:12px;height:12px;border-radius:50%;background:#46d369;border:2px solid #141414;animation:ping 1.6s infinite}
+@keyframes ping{0%{box-shadow:0 0 0 0 #46d369aa}70%{box-shadow:0 0 0 8px #46d36900}100%{box-shadow:0 0 0 0 #46d36900}}
+.feed .pinfo small.live{color:#46d369;font-weight:700}
+#pop{position:fixed;inset:0;z-index:350;display:none;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(#2a0a0c,#000);transition:opacity .4s}
+#pop.on{display:flex}#pop.out{opacity:0}
+#pop .big{font-size:150px;line-height:1;animation:popin .7s cubic-bezier(.2,1.6,.4,1) both}
+#pop h2{font-size:32px;margin-top:18px;animation:fadeup .5s .25s both}
+@keyframes popin{0%{transform:scale(0) rotate(-30deg)}60%{transform:scale(1.15) rotate(8deg)}100%{transform:none}}
 .toast{position:absolute;left:50%;top:14%;transform:translateX(-50%);background:#000c;padding:10px 20px;border-radius:6px;display:none}
 @media(max-width:700px){.card{width:44vw}nav input{width:110px}nav{gap:14px}.vol{display:none}.hero .in{bottom:30%}}
 </style>
@@ -226,7 +275,15 @@ main.flat{margin-top:0;padding-top:96px}
     </div>
     <div class="menu" id="menu"></div>
   </div>
+  <button class="skipb" id="skipIntro">Saltar intro ⏭</button>
+  <button class="skipb" id="skipCred">Saltar créditos ⏭</button>
+  <div class="upnext" id="upnext"><div class="unth" id="unTh"></div>
+    <div><small>Siguiente episodio</small><b id="unName"></b>
+      <div class="unbtns"><button class="btn w" id="unGo">▶ Ver ahora · <span id="unCount">10</span></button><button class="btn g" id="unStay">Ver créditos</button></div></div></div>
 </div>
+
+<div id="intro"><div class="iw" id="iw"></div><span class="skipi">Pulsa para saltar</span></div>
+<div id="pop"><div class="big" id="popAv"></div><h2 id="popHi"></h2></div>
 
 <script>
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -248,6 +305,7 @@ async function load(){
 }
 /* ---------- perfiles ---------- */
 async function setProfile(p){
+  playIntro();   // la animación de FERFLIX, una vez al día por navegador
   ME=p; store.set('mf_profile',p.id);
   $('#who').classList.remove('on'); document.body.style.overflow='';
   $('#me').style.display='flex'; $('#meAv').textContent=p.animal; $('#meName').textContent=p.name;
@@ -293,11 +351,78 @@ $('#wsug').onclick=e=>{const d=e.target.closest('[data-pid]');if(!d)return;
   WSEL=$('#wsug')._list.find(p=>p.id==d.dataset.pid);$('#wname').value=WSEL.name;$('#wsug').classList.remove('on');whoState()};
 $('#wname').onkeydown=e=>{if(e.key==='Enter'&&!$('#wgo').disabled)$('#wgo').click()};
 $('#wgo').onclick=async()=>{
-  if(WSEL)return setProfile(WSEL);
+  if(WSEL){await avatarPop(WSEL);return setProfile(WSEL)}
   const r=await fetch('api/profiles.php',{method:'POST',body:JSON.stringify({name:$('#wname').value,animal:WA})}),j=await r.json();
   if(!r.ok){$('#werr').textContent=j.error;return}
-  setProfile(j);
+  await avatarPop(j); setProfile(j);
 };
+// el animal del perfil aparece en grande con un saludo
+function avatarPop(p){
+  $('#popAv').textContent=p.animal; $('#popHi').textContent=`¡Hola, ${p.name}!`;
+  const el=$('#pop'); el.classList.remove('out'); el.classList.add('on');
+  return new Promise(r=>setTimeout(()=>{el.classList.add('out');setTimeout(()=>{el.classList.remove('on','out');r()},400)},1100));
+}
+/* ---------- intro de FERFLIX ---------- */
+function playIntro(){
+  const today=new Date().toDateString(); if(store.get('mf_intro_day','')===today)return; store.set('mf_intro_day',today);
+  const el=$('#intro'); $('#iw').innerHTML=[...'FERFLIX'].map((c,i)=>`<span style="--i:${i}">${c}</span>`).join('');
+  el.classList.remove('out'); el.classList.add('on'); tudum();
+  const end=()=>{if(!el.classList.contains('on'))return;el.classList.add('out');setTimeout(()=>el.classList.remove('on','out'),450)};
+  el.onclick=end; setTimeout(end,3000);
+}
+// el "tu-dum": dos golpes graves con reverberación y un acorde suave (sintetizado, sin archivos de audio).
+// Si el navegador no deja sonar audio sin un clic previo, la animación sale igual pero en silencio.
+function tudum(){
+  try{
+    const ac=new (window.AudioContext||window.webkitAudioContext)(); if(ac.state==='suspended')ac.resume();
+    const out=ac.createGain(); out.gain.value=.6; out.connect(ac.destination);
+    const rev=ac.createConvolver(), n=ac.sampleRate*2.4, ir=ac.createBuffer(2,n,ac.sampleRate);
+    for(let c=0;c<2;c++){const d=ir.getChannelData(c);for(let i=0;i<n;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/n,3)}
+    rev.buffer=ir; const wet=ac.createGain(); wet.gain.value=.4; rev.connect(wet); wet.connect(out);
+    const hit=(t0,f,dur,vol)=>{
+      const o=ac.createOscillator(),g=ac.createGain(); o.type='sine';
+      o.frequency.setValueAtTime(f*2.4,t0); o.frequency.exponentialRampToValueAtTime(f,t0+.07);
+      g.gain.setValueAtTime(0,t0); g.gain.linearRampToValueAtTime(vol,t0+.012); g.gain.exponentialRampToValueAtTime(.001,t0+dur);
+      o.connect(g); g.connect(out); g.connect(rev); o.start(t0); o.stop(t0+dur+.05);
+      const nb=ac.createBuffer(1,ac.sampleRate*.09,ac.sampleRate), nd=nb.getChannelData(0);
+      for(let i=0;i<nd.length;i++)nd[i]=(Math.random()*2-1)*(1-i/nd.length);
+      const ns=ac.createBufferSource(),lp=ac.createBiquadFilter(),ng=ac.createGain();
+      lp.type='lowpass'; lp.frequency.value=800; ns.buffer=nb; ng.gain.value=vol*.45; ns.connect(lp); lp.connect(ng); ng.connect(out); ng.connect(rev); ns.start(t0);
+    };
+    const t=ac.currentTime+.18; hit(t,58,.45,1); hit(t+.4,49,1.7,1.15);
+    [196,247,294,392].forEach(f=>{const o=ac.createOscillator(),g=ac.createGain(); o.type='triangle'; o.frequency.value=f;
+      g.gain.setValueAtTime(0,t+.45); g.gain.linearRampToValueAtTime(.045,t+1); g.gain.exponentialRampToValueAtTime(.001,t+2.8);
+      o.connect(g); g.connect(out); g.connect(rev); o.start(t+.45); o.stop(t+2.9)});
+    setTimeout(()=>ac.close(),4500);
+  }catch{}
+}
+/* ---------- color dominante del póster ---------- */
+const TINT=new Map();
+function tintOf(url){
+  if(!url)return Promise.resolve(null); if(TINT.has(url))return TINT.get(url);
+  const pr=new Promise(res=>{const im=new Image(); im.onerror=()=>res(null);
+    im.onload=()=>{try{
+      const c=document.createElement('canvas'); c.width=c.height=28; const x=c.getContext('2d',{willReadFrequently:true});
+      x.drawImage(im,0,0,28,28); const d=x.getImageData(0,0,28,28).data;
+      // agrupa los píxeles por tono (12 grupos) dando más peso a los colores vivos; gana el grupo más fuerte
+      const bins=Array.from({length:12},()=>({w:0,r:0,g:0,b:0}));
+      for(let i=0;i<d.length;i+=4){const r=d[i],g=d[i+1],b=d[i+2],mx=Math.max(r,g,b),mn=Math.min(r,g,b),df=mx-mn;
+        if(mx<40||df/mx<.22)continue;
+        const h=mx===r?((g-b)/df+6)%6:mx===g?(b-r)/df+2:(r-g)/df+4, B=bins[Math.floor(h*2)%12], w=(df/mx)**2*(mx/255);
+        B.w+=w;B.r+=r*w;B.g+=g*w;B.b+=b*w}
+      const top=bins.reduce((a,b)=>b.w>a.w?b:a); if(top.w<.8)return res(null);
+      const rgb=[top.r/top.w,top.g/top.w,top.b/top.w], k=Math.min(1.6,210/Math.max(...rgb));
+      res(rgb.map(v=>Math.round(Math.min(255,v*k))).join(','));
+    }catch{res(null)}};
+    im.src=url});
+  TINT.set(url,pr); return pr;
+}
+function applyTints(){
+  const h=document.querySelector('.hero[data-hero]');
+  if(h){const t=CAT.find(x=>x.id==h.dataset.hero);tintOf(t&&(t.poster||t.thumb)).then(c=>{if(c)h.style.setProperty('--tint',c)})}
+  document.querySelectorAll('.grid .card[data-t]').forEach(el=>{const t=CAT.find(x=>x.id==el.dataset.t);
+    tintOf(t&&(t.poster||t.thumb)).then(c=>{if(c)el.style.setProperty('--glow',c)})});
+}
 $('#me').onclick=e=>{e.stopPropagation();$('#meDd').classList.toggle('on')};
 document.addEventListener('click',()=>$('#meDd').classList.remove('on'));
 $('#switchP').onclick=e=>{e.stopPropagation();$('#meDd').classList.remove('on');ME=null;PROG={};try{localStorage.removeItem('mf_profile')}catch{};showWho()};
@@ -328,7 +453,7 @@ async function loadFeed(){
   if(FEED_SELF&&ME)FEED_OPEN.add(ME.name);   // su propia lista, desplegada
   if(!P_.classList.contains('on'))render();
 }
-setInterval(()=>{if(ME&&!document.hidden&&!P_.classList.contains('on'))loadFeed()},60000);
+setInterval(()=>{if(ME&&!document.hidden&&!P_.classList.contains('on'))loadFeed()},30000);
 function ago(ts){const s=Math.max(0,Date.now()/1000-ts);
   return s<60?'ahora mismo':s<3600?`hace ${Math.floor(s/60)} min`:s<86400?`hace ${Math.floor(s/3600)} h`:s<172800?'ayer':`hace ${Math.floor(s/86400)} días`}
 // personas desplegadas en el cuadro (se recuerda en este navegador)
@@ -346,8 +471,8 @@ function feedHtml(){
     const open=FEED_OPEN.has(p.name), any=p.items.length;
     const sum=any?[p.whole?`${p.whole} entera${p.whole>1?'s':''}`:'',p.partial?`${p.partial} a medias`:'',hm(p.seconds)].filter(Boolean).join(' · '):'Nada todavía';
     return `<div class="person ${open?'open':''}">
-      <div class="ph" data-person="${esc(p.name)}"><span class="pav">${p.animal}</span>
-        <div class="pinfo"><b>${esc(p.name)}</b><small>${sum}</small></div>
+      <div class="ph" data-person="${esc(p.name)}"><span class="pav ${p.watching?'live':''}" ${p.watching?'title="Viendo ahora"':''}>${p.animal}</span>
+        <div class="pinfo"><b>${esc(p.name)}</b>${p.watching?`<small class="live">▶ Viendo ${esc(p.watching.title)}${p.watching.type==='series'?` · T${p.watching.season??1}:E${p.watching.episode??'?'}`:''}</small>`:''}<small>${sum}</small></div>
         ${any?`<time>${ago(p.last)}</time><span class="chev">›</span>`:''}</div>
       ${open&&any?`<div class="pitems">${p.items.map(itemHtml).join('')}</div>`:''}</div>`;
   }).join('');
@@ -436,10 +561,10 @@ function render(){
   if(FILTER==='movie'&&!q){
     $('#app').innerHTML='<main class="flat">'+(gridHtml('Películas',[...procOf('movie',true),...list.map(posterCard)])
       ||'<div class="empty" style="padding:20vh 20px"><h2>Todavía no hay películas</h2></div>')+'</main>';
-    return;
+    applyTints(); return;
   }
   const hero=list[0]||CAT[0];
-  let h=(hero?`<div class="hero" style="${bg(hero)}"><div class="in"><h1>${esc(hero.title)}</h1><p>${esc(hero.description)}</p>
+  let h=(hero?`<div class="hero" data-hero="${hero.id}" style="${bg(hero)}"><div class="in"><h1>${esc(hero.title)}</h1><p>${esc(hero.description)}</p>
    <div class="btns"><button class="btn w" data-play="${hero.id}">▶ Reproducir</button><button class="btn g" data-t="${hero.id}">ⓘ Más información</button></div></div></div>`
    :'<div class="hero" style="height:42vh;min-height:300px"></div>')+'<main>';
   if(q) h+=rowHtml('Resultados',list.map(t=>card(t)));
@@ -453,6 +578,7 @@ function render(){
   }
   $('#app').innerHTML=h+'</main>';
   if(q&&!list.length)$('#app').innerHTML='<div class="empty" style="padding-top:30vh"><h2>Sin resultados</h2></div>';
+  applyTints();
 }
 document.addEventListener('click',e=>{
   const a=e.target.closest('.arrow'); if(a){const tr=a.parentElement.querySelector('.track');tr.scrollBy({left:(a.classList.contains('r')?1:-1)*tr.clientWidth*.85});return}
@@ -481,6 +607,7 @@ function openModal(t){
   <div class="body"><div class="meta">${t.type==='series'?'Serie':'Película'}<span>${t.year??''}</span></div><p>${esc(t.description)}</p>`;
   if(t.type==='series') h+=`<div class="eps"><h3>Episodios</h3><select id="ssel">${seasons.map(s=>`<option value="${s}">Temporada ${s}</option>`).join('')}</select><div id="eplist"></div></div>`;
   $('#box').innerHTML=h+'</div>'; $('#modal').classList.add('on'); document.body.style.overflow='hidden';
+  $('#box').style.removeProperty('--tint'); tintOf(t.poster||t.thumb).then(c=>{if(c)$('#box').style.setProperty('--tint',c)});
   $('#mx').onclick=closeModal;
   if(t.type==='movie'){
     const v=t.videos[0], b=$('#markMovie');
@@ -514,7 +641,35 @@ function setAudio(i,silent){
   applyVol(); if(!silent)store.set('mf_audio',au[i].lang); buildMenu();
 }
 function syncAudio(force){ if(!altAudio())return; if(force||Math.abs(A.currentTime-V.currentTime)>.3)A.currentTime=V.currentTime; }
+/* saltar intro / siguiente episodio / saltar créditos */
+let upTimer=null, upDismissed=false, upLeft=0;
+const nextOf=()=>{if(!cur||cur.t.type!=='series')return null;return cur.t.videos[cur.t.videos.indexOf(cur.v)+1]||null};
+function skipState(){
+  if(!cur||!V.duration)return;
+  const t=V.currentTime, d=V.duration, sk=cur.t.skip||{}, nx=nextOf();
+  $('#skipIntro').classList.toggle('on',!!(sk.intro&&t>=sk.intro[0]&&t<sk.intro[1]-1));
+  // los créditos empiezan "outro" segundos antes del final; en series sin definir, los últimos 20 s
+  const outro=sk.outro!=null?sk.outro:(nx?20:null), outroAt=outro!=null?d-outro:Infinity, inOutro=t>=outroAt&&t<d-.3;
+  if(t<outroAt-5)upDismissed=false;                       // si vuelve atrás, se puede volver a ofrecer
+  if(nx&&inOutro&&!upDismissed){if(!upTimer)showUpNext(nx)}
+  else if($('#upnext').classList.contains('on'))hideUpNext();
+  $('#skipCred').classList.toggle('on',!nx&&sk.outro!=null&&inOutro);
+}
+function showUpNext(nx){
+  $('#unTh').style.backgroundImage=cur.t.thumb?`url('${cur.t.thumb}')`:'';
+  $('#unName').textContent=`T${nx.season??1}:E${nx.episode??'?'} · ${nx.name}`;
+  upLeft=10; $('#unCount').textContent=upLeft;
+  const b=$('#unGo'); b.style.animation='none'; b.offsetWidth; b.style.animation='';   // reinicia la barra de cuenta atrás
+  $('#upnext').classList.add('on');
+  upTimer=setInterval(()=>{if(V.paused)return; upLeft--; $('#unCount').textContent=upLeft; if(upLeft<=0){hideUpNext();nextEp()}},1000);
+}
+function hideUpNext(){clearInterval(upTimer);upTimer=null;$('#upnext').classList.remove('on')}
+$('#skipIntro').onclick=e=>{e.stopPropagation();V.currentTime=cur.t.skip.intro[1];$('#skipIntro').classList.remove('on')};
+$('#skipCred').onclick=e=>{e.stopPropagation();V.currentTime=Math.max(0,V.duration-1);saveProg(true);closePlayer()};   // queda como vista
+$('#unGo').onclick=e=>{e.stopPropagation();hideUpNext();nextEp()};
+$('#unStay').onclick=e=>{e.stopPropagation();upDismissed=true;hideUpNext()};
 function startVideo(t,v){
+  hideUpNext(); upDismissed=false; $('#skipIntro').classList.remove('on'); $('#skipCred').classList.remove('on');
   cur={t,v}; closeModal(); P_.classList.add('on'); document.body.style.overflow='hidden';
   audIdx=0; A.pause(); A.removeAttribute('src'); applyVol();
   V.innerHTML=''; V.src=v.file;
@@ -540,7 +695,7 @@ function buildMenu(){
   m.querySelectorAll('div[data-i]').forEach(d=>d.onclick=e=>{e.stopPropagation();setSub(+d.dataset.i);m.classList.remove('on')});
   m.querySelectorAll('div[data-a]').forEach(d=>d.onclick=e=>{e.stopPropagation();setAudio(+d.dataset.a);m.classList.remove('on')});
 }
-function closePlayer(){ saveProg(true); V.pause(); A.pause(); A.removeAttribute('src'); V.removeAttribute('src'); V.load(); P_.classList.remove('on'); document.body.style.overflow=''; if(document.fullscreenElement)document.exitFullscreen(); cur=null; render(); setTimeout(loadFeed,800); }
+function closePlayer(){ hideUpNext(); saveProg(true); V.pause(); A.pause(); A.removeAttribute('src'); V.removeAttribute('src'); V.load(); P_.classList.remove('on'); document.body.style.overflow=''; if(document.fullscreenElement)document.exitFullscreen(); cur=null; render(); setTimeout(loadFeed,800); }
 function saveProg(force){
   if(!cur||!V.duration||!ME)return; const n=Date.now(); if(!force&&n-lastSave<10000)return; lastSave=n;
   const done=V.currentTime>=V.duration*0.8, old=PROG[cur.v.id];   // vista = pasado el 80 %
@@ -562,8 +717,8 @@ $('#cc').onclick=e=>{e.stopPropagation();buildMenu();$('#menu').classList.toggle
 $('#fs').onclick=()=>document.fullscreenElement?document.exitFullscreen():P_.requestFullscreen();
 V.ondblclick=$('#fs').onclick;
 P_.addEventListener('click',e=>{if(!e.target.closest('#cc,#menu'))$('#menu').classList.remove('on')});
-V.onplay=()=>{$('#pp').textContent='⏸';wake();if(altAudio()){syncAudio(true);A.play().catch(()=>{})}};
-V.onpause=()=>{$('#pp').textContent='▶';P_.classList.remove('idle');saveProg(true);A.pause()};
+V.onplay=()=>{P_.classList.remove('paused');$('#pp').textContent='⏸';wake();if(altAudio()){syncAudio(true);A.play().catch(()=>{})}};
+V.onpause=()=>{P_.classList.add('paused');$('#pp').textContent='▶';P_.classList.remove('idle');saveProg(true);A.pause()};
 V.onseeked=()=>syncAudio(true);
 V.onratechange=()=>{A.playbackRate=V.playbackRate};
 V.onwaiting=()=>{$('#spin').style.display='block';if(altAudio())A.pause()};
@@ -572,7 +727,7 @@ V.onvolumechange=()=>{A.volume=V.volume;updMute()};
 V.onended=()=>{ if(cur.t.type==='series'&&$('#next').style.display!=='none')nextEp(); else closePlayer(); };
 V.ontimeupdate=()=>{const d=V.duration||0,t=V.currentTime,p=d?t/d*100:0;
   $('#cur').style.width=p+'%';$('#dot').style.left=p+'%';$('#time').textContent=fmt(t)+' / '+fmt(d);
-  syncAudio();
+  syncAudio(); skipState();
   if(V.buffered.length)$('#buf').style.width=(V.buffered.end(V.buffered.length-1)/d*100)+'%'; saveProg()};
 $('#seek').onclick=e=>{const r=e.currentTarget.getBoundingClientRect();V.currentTime=(e.clientX-r.left)/r.width*V.duration};
 P_.onmousemove=wake; P_.ontouchstart=wake;

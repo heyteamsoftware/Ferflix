@@ -40,6 +40,18 @@ case 'title_save':
     if (!empty($in['auto']) && defined('TMDB_KEY') && TMDB_KEY) $found = tmdb_apply($pdo, $nid);
     out(['id' => $nid, 'found' => $found]);
 
+case 'skip_save':
+    // tiempos para "Saltar intro" y para cuándo empiezan los créditos (segundos; vacío = sin definir)
+    $n = fn($k) => isset($in[$k]) && $in[$k] !== '' && $in[$k] !== null ? max(0, (int)$in[$k]) : null;
+    [$is, $ie, $ou] = [$n('intro_start'), $n('intro_end'), $n('outro')];
+    if (($is === null) !== ($ie === null) || ($is !== null && $ie <= $is)) out(['error' => 'La intro necesita inicio y fin, y el fin después del inicio'], 400);
+    $pdo->prepare('UPDATE titles SET intro_start=?, intro_end=?, outro=? WHERE id=?')->execute([$is, $ie, $ou, (int)($in['id'] ?? 0)]);
+    out(['ok' => true]);
+
+case 'disk':
+    // espacio del disco donde se guardan los vídeos
+    out(['free' => (int)disk_free_space(MEDIA_DIR), 'total' => (int)disk_total_space(MEDIA_DIR)]);
+
 case 'tmdb_refresh':
     if (!defined('TMDB_KEY') || !TMDB_KEY) out(['error' => 'Falta configurar la clave de TMDB en api/config.php'], 400);
     $found = tmdb_apply($pdo, (int)($in['id'] ?? 0), ($in['query'] ?? '') !== '' ? $in['query'] : null, ($in['year'] ?? '') !== '' ? (int)$in['year'] : null);

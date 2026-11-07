@@ -29,6 +29,14 @@ foreach ($rows as $r) {
     ];
     unset($p);
 }
+// "Viendo ahora": el reproductor guarda el progreso cada 10 s, así que si hubo guardado en los últimos 40 s está viendo algo
+$q = $pdo->prepare("SELECT g.profile_id, t.title, t.type, v.season, v.episode FROM progress g JOIN videos v ON v.id=g.video_id
+    JOIN titles t ON t.id=v.title_id WHERE g.updated >= ? AND g.t > 0 ORDER BY g.updated DESC");   // t>0: marcar/desmarcar a mano no cuenta
+$q->execute([time() - 40]);
+foreach ($q->fetchAll() as $w) if (isset($people[$w['profile_id']]) && empty($people[$w['profile_id']]['watching']))
+    $people[$w['profile_id']]['watching'] = ['title' => $w['title'], 'type' => $w['type'],
+        'season' => $w['season'] === null ? null : (int)$w['season'], 'episode' => $w['episode'] === null ? null : (int)$w['episode']];
+
 // Perfiles con only_self=1 (p. ej. Mariló) solo ven su propia actividad; el resto ve la de todos
 $me = (int)($_GET['profile'] ?? 0);
 $q = $pdo->prepare('SELECT only_self FROM profiles WHERE id=?'); $q->execute([$me]);
