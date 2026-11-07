@@ -47,6 +47,7 @@ main.flat{margin-top:0;padding-top:70px}
 .wby span{width:24px;height:24px;border-radius:50%;background:#141414e6;border:1.5px solid #46d369;display:flex;align-items:center;justify-content:center;
   font-size:14px;margin-left:-7px;box-shadow:0 2px 6px #000a}
 .wby span:first-child{margin-left:0}.wby .more{font-size:10px;font-weight:800;color:#46d369}
+.wby span.part{border-color:#f5c542}   /* empezada (amarillo) frente a vista entera (verde) */
 .grid .card:hover .wby{opacity:0}   /* al pasar el ratón deja sitio al título */
 .grid .card:not(.hasposter) .wby{bottom:auto;top:8px}   /* sin póster el título va siempre abajo: los animalitos, arriba */
 @media(max-width:700px){.grid{grid-template-columns:repeat(3,1fr);gap:12px 8px}}
@@ -475,12 +476,16 @@ async function loadFeed(){
   updateFeedUI();
 }
 // pinta el desplegable y el contador verde de quién está viendo algo ahora (sin contarte a ti)
-// animalitos de quien ha visto entera cada película (sale de "Lo que han visto": respeta a quien solo ve lo suyo)
+// animalitos de quien ha visto cada película: aro verde = entera, amarillo = empezada
+// (sale de "Lo que han visto": respeta a quien solo ve lo suyo)
 function paintWatchers(){
   document.querySelectorAll('.grid .card[data-t] .wby').forEach(el=>{
-    const id=+el.closest('[data-t]').dataset.t, who=FEED.filter(p=>p.items.some(i=>i.title_id===id&&i.done));
-    el.innerHTML=who.slice(0,4).map(p=>`<span>${p.animal}</span>`).join('')+(who.length>4?`<span class="more">+${who.length-4}</span>`:'');
-    el.title=who.length?'Vista entera por '+who.map(p=>p.name).join(', '):'';
+    const id=+el.closest('[data-t]').dataset.t;
+    const whole=FEED.filter(p=>p.items.some(i=>i.title_id===id&&i.done));
+    const part=FEED.filter(p=>!whole.includes(p)&&p.items.some(i=>i.title_id===id&&!i.done));
+    const all=[...whole.map(p=>({p,c:''})),...part.map(p=>({p,c:'part'}))];
+    el.innerHTML=all.slice(0,5).map(x=>`<span class="${x.c}">${x.p.animal}</span>`).join('')+(all.length>5?`<span class="more">+${all.length-5}</span>`:'');
+    el.title=[whole.length?'Vista entera: '+whole.map(p=>p.name).join(', '):'',part.length?'Empezada: '+part.map(p=>p.name).join(', '):''].filter(Boolean).join(' · ');
   });
 }
 function updateFeedUI(){
