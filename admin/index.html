@@ -94,8 +94,12 @@ textarea{min-height:70px;resize:vertical}
 
 <script>
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const api=async(a,body,isForm)=>{
-  const r=await fetch('../api/admin.php?action='+a,{method:'POST',headers:isForm?{}:{'Content-Type':'application/json'},body:isForm?body:JSON.stringify(body||{})});
+const api=async(a,body,isForm,timeoutMs)=>{
+  const ctl=new AbortController(), tm=timeoutMs?setTimeout(()=>ctl.abort(),timeoutMs):0;
+  let r;
+  try{r=await fetch('../api/admin.php?action='+a,{method:'POST',signal:ctl.signal,headers:isForm?{}:{'Content-Type':'application/json'},body:isForm?body:JSON.stringify(body||{})})}
+  catch(e){throw new Error(e.name==='AbortError'?'El servidor no responde':'Sin conexión')}
+  finally{clearTimeout(tm)}
   if(r.status===401){show(false);throw new Error('Sesión caducada')}
   const j=await r.json(); if(!r.ok)throw new Error(j.error||'Error'); return j;
 };
@@ -146,6 +150,7 @@ $('#files').onchange=e=>add([...e.target.files]);
 ['dragleave','drop'].forEach(ev=>$('#drop').addEventListener(ev,e=>{e.preventDefault();$('#drop').classList.remove('over')}));
 $('#drop').addEventListener('drop',e=>add([...e.dataTransfer.files]));
 function add(files){
+  if(UPLOADING){alert('Espera a que termine la subida actual (o cancélala) para añadir más archivos.');return}
   for(const f of files){
     if(VID.test(f.name)&&f.size>MAX){alert(f.name+' supera el límite de 10 GB');continue}
     if(VID.test(f.name)){const ep=parseEp(f.name);ITEMS.push({file:f,title:clean(f.name),season:ep.s,episode:ep.e,name:clean(f.name),subs:[],state:'wait'})}
@@ -173,7 +178,7 @@ function build(){
     <div class="pbar"><i></i></div><div class="st"></div></div>`).join('')
     + SUBS.filter(s=>s.unmatched).map(s=>{const k=SUBS.indexOf(s);return `<div class="item"><span class="warn">⚠ Subtítulo sin vídeo:</span> ${esc(s.file.name)}
       <select data-sub="${k}" style="margin-top:8px"><option value="">Asignar a…</option>${ITEMS.map((i,n)=>`<option value="${n}">${esc(i.file.name)}</option>`).join('')}</select></div>`}).join('');
-  $('#go').disabled=!ITEMS.length;
+  $('#go').disabled=UPLOADING||!ITEMS.length;
 }
 $('#items').addEventListener('input',e=>{const k=e.target.closest('.item')?.dataset.k;if(k!=null&&e.target.dataset.f)ITEMS[k][e.target.dataset.f]=e.target.value});
 $('#items').addEventListener('change',e=>{if(e.target.dataset.sub!=null&&e.target.value!==''){SUBS[e.target.dataset.sub].forced=+e.target.value;build()}});
@@ -208,7 +213,7 @@ async function uploadVideo(it,titleId,el,isMovie){
     fd.append('title_id',titleId);fd.append('size',it.file.size);
     fd.append('season',TYPE==='series'?(it.season??''):'');fd.append('episode',TYPE==='series'?(it.episode??''):'');
     if(i===total-1){fd.append('vname',it.name||it.title||'');fd.append('hevc_copy',$('#hevcCopy').checked?'1':'0')}
-    for(let t=0;;t++){try{res=await api('upload_chunk',fd,true);break}catch(err){if(t>=3)throw err;await new Promise(r=>setTimeout(r,1500))}}
+    for(let t=0;;t++){try{res=await api('upload_chunk',fd,true,90000);break}catch(err){if(t>=3)throw err;await new Promise(r=>setTimeout(r,1500))}}
     el.querySelector('.pbar i').style.width=((i+1)/total*100)+'%';
     el.querySelector('.st').textContent=`Subiendo… ${Math.round((i+1)/total*100)}%`;
   }
@@ -217,7 +222,7 @@ async function uploadVideo(it,titleId,el,isMovie){
 }
 $('#stop').onclick=()=>{STOP=true;$('#stop').disabled=true;$('#stop').textContent='Cancelando…'};
 $('#go').onclick=async()=>{
-  if(!ITEMS.length)return;
+  if(UPLOADING||!ITEMS.length)return;
   $('#go').disabled=true; $('#gmsg').textContent='';
   UPLOADING=true; STOP=false; ITEMS.forEach(i=>i.cancel=false);
   $('#stop').classList.remove('hide'); $('#stop').disabled=false; $('#stop').textContent='✕ Cancelar subida';

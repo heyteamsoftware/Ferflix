@@ -4,7 +4,12 @@ require __DIR__ . '/lib.php';
 need_viewer();
 $pdo = db();
 $now = time();
-$pdo->prepare('DELETE FROM uploads WHERE updated < ?')->execute([$now - 86400]);   // subidas abandonadas
+// subidas abandonadas (10 min sin recibir trozos): se borran con su archivo a medias
+$old = $pdo->prepare('SELECT id FROM uploads WHERE updated < ?'); $old->execute([$now - 600]);
+foreach ($old->fetchAll(PDO::FETCH_COLUMN) as $uid) {
+    if (preg_match('/^[a-f0-9]{16,40}$/', $uid)) @unlink(MEDIA_DIR . "/tmp/$uid.part");
+    $pdo->prepare('DELETE FROM uploads WHERE id=?')->execute([$uid]);
+}
 
 $num = fn($x) => $x === null ? null : (int)$x;
 $res = [];
