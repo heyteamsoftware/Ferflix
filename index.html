@@ -141,8 +141,7 @@ main.flat{margin-top:0;padding-top:96px}
 #app{position:relative}
 /* Encima de la portada, a la derecha, y siempre por encima de donde empiezan las filas:
    las filas arrancan en (alto de la portada − 8vh), así que el cuadro termina 28px antes */
-.feed{--top:76px;position:absolute;z-index:4;right:4%;top:var(--top);width:330px;display:flex;flex-direction:column;
-  max-height:calc(max(62vh,380px) - 8vh - var(--top) - 28px);
+.feed{width:360px;display:flex;flex-direction:column;max-height:calc(100vh - 96px);
   background:linear-gradient(160deg,#1c1c1ce6,#0d0d0de6);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   border:1px solid #ffffff1a;border-radius:14px;box-shadow:0 18px 40px #0009;overflow:hidden}
 .feed .hd{display:flex;align-items:center;gap:12px;padding:14px 16px 12px;border-bottom:1px solid #ffffff12;flex:none}
@@ -177,10 +176,16 @@ main.flat{margin-top:0;padding-top:96px}
 .feed .th .pb{position:absolute;left:0;bottom:0;height:3px;background:var(--red);border-radius:0 0 0 6px}
 .feed .fep{font-size:12px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .feed .none{color:var(--muted);font-size:13px;padding:14px 10px 16px;text-align:center;line-height:1.5}
-@media(min-width:901px){.hero .in{max-width:min(560px,calc(92% - 370px))}}
-@media(max-height:560px) and (min-width:901px){.feed{display:none}}
-@media(max-width:900px){#app{display:flex;flex-direction:column}.hero{order:1}main{order:3;margin-top:0}
-  .feed{order:2;position:static;width:auto;max-height:340px;margin:0 4% 28px;backdrop-filter:none}}
+/* botón 👀 de la barra y su desplegable */
+.fdrop{position:relative}
+.fbtn{position:relative;width:38px;height:38px;border-radius:50%;font-size:20px;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.fbtn:hover,.fdrop.open .fbtn{background:#ffffff1f}
+.fbtn .cnt{position:absolute;top:-2px;right:-4px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:#46d369;color:#062b12;font-size:11px;font-weight:800;
+  display:none;align-items:center;justify-content:center;border:2px solid #141414;animation:ping 1.6s infinite}
+.fbtn .cnt.on{display:flex}
+.fpanel{position:absolute;right:-60px;top:48px;display:none;z-index:60}
+.fdrop.open .fpanel{display:block;animation:fadeup .2s ease}
+@media(max-width:700px){.fpanel{position:fixed;left:8px;right:8px;top:64px}.fpanel .feed{width:auto}}
 /* ===== saltar intro / siguiente episodio / saltar créditos ===== */
 .skipb{position:absolute;right:44px;bottom:118px;z-index:6;display:none;background:#000b;border:2px solid #ffffffb3;color:#fff;padding:12px 24px;border-radius:6px;font-weight:700;font-size:17px;backdrop-filter:blur(6px);transition:background .15s,color .15s}
 .skipb.on{display:block;animation:fadeup .3s ease}.skipb:hover{background:#fff;color:#000}
@@ -239,6 +244,8 @@ main.flat{margin-top:0;padding-top:96px}
   <a class="logo" href="#">FERFLIX</a>
   <a class="l on" data-f="all">Inicio</a><a class="l" data-f="series">Series</a><a class="l" data-f="movie">Películas</a>
   <input id="q" type="search" placeholder="Buscar títulos">
+  <div class="fdrop" id="fdrop" style="display:none"><button class="fbtn" id="fbtn" title="Lo que han visto">👀<span class="cnt" id="fcnt"></span></button>
+    <div class="fpanel" id="fpanel"></div></div>
   <div class="me" id="me" style="display:none"><span class="av" id="meAv"></span><span id="meName"></span>
     <div class="dd" id="meDd"><div id="switchP">🔄 Cambiar de perfil</div></div></div>
 </nav>
@@ -308,7 +315,7 @@ async function setProfile(p){
   playIntro();   // la animación de FERFLIX, una vez al día por navegador
   ME=p; store.set('mf_profile',p.id);
   $('#who').classList.remove('on'); document.body.style.overflow='';
-  $('#me').style.display='flex'; $('#meAv').textContent=p.animal; $('#meName').textContent=p.name;
+  $('#me').style.display='flex'; $('#fdrop').style.display=''; $('#meAv').textContent=p.animal; $('#meName').textContent=p.name;
   PROG=await (await fetch('api/progress.php?profile='+p.id)).json();
   loadFeed(); pollProc();
   // pasa al perfil el progreso antiguo que había guardado en este navegador
@@ -322,7 +329,7 @@ async function setProfile(p){
 }
 let WA=null, WSEL=null, ANIMALS=[], sugT;
 async function showWho(){
-  $('#who').classList.add('on'); document.body.style.overflow='hidden'; $('#me').style.display='none';
+  $('#who').classList.add('on'); document.body.style.overflow='hidden'; $('#me').style.display='none'; $('#fdrop').style.display='none';
   $('#wname').value=''; WSEL=null; WA=null; $('#werr').textContent=''; $('#wsug').classList.remove('on');
   if(!ANIMALS.length)ANIMALS=(await (await fetch('api/profiles.php')).json()).animals;
   $('#wanimals').innerHTML=ANIMALS.map(a=>`<button type="button" data-an="${a}">${a}</button>`).join('');
@@ -451,8 +458,20 @@ async function loadFeed(){
   if(!ME)return;
   try{const j=await (await fetch('api/activity.php?profile='+ME.id)).json();FEED=j.people||[];FEED_SELF=!!j.self_only}catch{FEED=[]}
   if(FEED_SELF&&ME)FEED_OPEN.add(ME.name);   // su propia lista, desplegada
-  if(!P_.classList.contains('on'))render();
+  updateFeedUI();
 }
+// pinta el desplegable y el contador verde de quién está viendo algo ahora (sin contarte a ti)
+function updateFeedUI(){
+  const live=FEED.filter(p=>p.watching&&(!ME||p.name!==ME.name)).length, c=$('#fcnt');
+  c.textContent=live; c.classList.toggle('on',live>0);
+  $('#fbtn').title=live?`Lo que han visto · ${live} viendo ahora`:'Lo que han visto';
+  const pn=$('#fpanel'), sc=pn.querySelector('.list')?.scrollTop||0;
+  pn.innerHTML=feedHtml(); const l=pn.querySelector('.list'); if(l)l.scrollTop=sc;
+}
+$('#fbtn').onclick=e=>{e.stopPropagation();const d=$('#fdrop');d.classList.toggle('open');if(d.classList.contains('open'))loadFeed()};
+document.addEventListener('click',e=>{const inPanel=e.composedPath().some(n=>n.id==='fpanel');   // composedPath: sigue valiendo aunque el desplegable se repinte durante el clic
+  if(!inPanel||e.target.closest('[data-t]'))$('#fdrop').classList.remove('open')});
+addEventListener('keydown',e=>{if(e.key==='Escape')$('#fdrop').classList.remove('open')});
 setInterval(()=>{if(ME&&!document.hidden&&!P_.classList.contains('on'))loadFeed()},30000);
 function ago(ts){const s=Math.max(0,Date.now()/1000-ts);
   return s<60?'ahora mismo':s<3600?`hace ${Math.floor(s/60)} min`:s<86400?`hace ${Math.floor(s/3600)} h`:s<172800?'ayer':`hace ${Math.floor(s/86400)} días`}
@@ -483,15 +502,14 @@ function feedHtml(){
 document.addEventListener('click',e=>{
   const h=e.target.closest('.ph[data-person]'); if(!h)return;
   const n=h.dataset.person; FEED_OPEN.has(n)?FEED_OPEN.delete(n):FEED_OPEN.add(n); store.set('mf_feed_open',[...FEED_OPEN]);
-  const a=document.querySelector('.feed'), sc=a&&a.querySelector('.list').scrollTop;
-  if(a){a.outerHTML=feedHtml();document.querySelector('.feed .list').scrollTop=sc}
+  updateFeedUI();
 });
 async function markVideo(v,val){
   if(!ME)return;
   const body=val?{profile:ME.id,video_id:v.id,t:0,done:true}:{profile:ME.id,video_id:v.id,unmark:true};
   await fetch('api/progress.php',{method:'POST',body:JSON.stringify(body)});
   PROG[v.id]={t:0,done:val,ts:Math.round(Date.now()/1000)};
-  await loadFeed();
+  await loadFeed(); if(!P_.classList.contains('on'))render();
 }
 function pct(v){const p=PROG[v.id];if(!p)return 0;if(p.done)return 100;return v.duration?Math.min(100,p.t/v.duration*100):0}
 // Qué está viendo y qué ha visto el perfil: por cada título, su último vídeo; si lo terminó, el siguiente capítulo
@@ -569,7 +587,6 @@ function render(){
    :'<div class="hero" style="height:42vh;min-height:300px"></div>')+'<main>';
   if(q) h+=rowHtml('Resultados',list.map(t=>card(t)));
   else{
-    h=feedHtml()+h;
     h+=rowHtml(`Continuar viendo · ${who}`,cont.map(x=>card(x.t,x.v)));
     h+=rowHtml(`Ya visto por ${who}`,seen.map(x=>card(x.t,x.v)));
     // Películas en cuadrícula, por orden de subida (la última subida primero; CAT ya viene así del servidor)
