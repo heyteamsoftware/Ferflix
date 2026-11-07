@@ -570,7 +570,7 @@ function card(t,v){
 }
 // tarjeta vertical para la cuadrícula: usa el póster; si no hay, la imagen horizontal recortada
 function posterCard(t){
-  const img=t.poster||t.thumb, w=pct(t.videos[0]);
+  const img=t.poster||t.thumb, w=t.type==='movie'?pct(t.videos[0]):0;
   return `<div class="card ${t.poster?'hasposter':''}" style="${img?`background-image:url('${esc(img)}')`:''}" data-t="${t.id}"><div class="cap">${esc(t.title)}</div>${w?`<div class="bar" style="width:${w}%"></div>`:''}</div>`;
 }
 function gridHtml(name,items){
@@ -587,10 +587,11 @@ function render(){
   if(!CAT.length&&!PROC.length){$('#app').innerHTML='<div class="empty"><h2>Todavía no hay contenido</h2><p>Sube películas o series desde el panel de administración.</p></div>';return}
   const [cont,seen]=activity(list), who=ME?`${ME.animal} ${ME.name}`:'';
   const procOf=(type,portrait)=>PROC.filter(p=>p.type===type&&(!q||p.title.toLowerCase().includes(q))).map(p=>procCard(p,portrait));
-  // Pestaña Películas: sin portada grande, la cuadrícula directamente arriba
-  if(FILTER==='movie'&&!q){
-    $('#app').innerHTML='<main class="flat">'+(gridHtml('Películas',[...procOf('movie',true),...list.map(posterCard)])
-      ||'<div class="empty" style="padding:20vh 20px"><h2>Todavía no hay películas</h2></div>')+'</main>';
+  // Pestañas Películas y Series: sin portada grande, la cuadrícula de pósters directamente arriba
+  if((FILTER==='movie'||FILTER==='series')&&!q){
+    const name=FILTER==='movie'?'Películas':'Series';
+    $('#app').innerHTML='<main class="flat">'+(gridHtml(name,[...procOf(FILTER,true),...list.map(posterCard)])
+      ||`<div class="empty" style="padding:20vh 20px"><h2>Todavía no hay ${name.toLowerCase()}</h2></div>`)+'</main>';
     applyTints(); return;
   }
   const hero=list[0]||CAT[0];
