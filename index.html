@@ -16,16 +16,16 @@ nav.solid{background:var(--bg)}
 .logo{color:var(--red);font-weight:900;font-size:28px;letter-spacing:1px;text-decoration:none}
 nav a.l{color:#e5e5e5;text-decoration:none;font-size:14px;cursor:pointer}nav a.l.on{font-weight:700;color:#fff}
 nav input{margin-left:auto;background:#000a;border:1px solid #fff6;color:#fff;padding:7px 12px;border-radius:3px;width:200px}
-.hero{position:relative;height:80vh;min-height:420px;background:#222 center/cover}
+.hero{position:relative;height:62vh;min-height:380px;background:#222 center/cover}
 .hero::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#000b 0,#0000 60%),linear-gradient(0deg,var(--bg) 0,#0000 35%)}
-.hero .in{position:absolute;z-index:2;left:4%;bottom:26%;max-width:560px}
-.hero h1{font-size:clamp(32px,5vw,64px);margin-bottom:14px;text-shadow:2px 2px 8px #0008}
+.hero .in{position:absolute;z-index:2;left:4%;bottom:19%;max-width:560px}
+.hero h1{font-size:clamp(30px,4.2vw,54px);margin-bottom:10px;text-shadow:2px 2px 8px #0008}
 .hero p{font-size:clamp(14px,1.4vw,19px);line-height:1.4;text-shadow:1px 1px 4px #000;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
-.btns{display:flex;gap:12px;margin-top:18px}
+.btns{display:flex;gap:12px;margin-top:14px}
 .btn{padding:10px 26px;border-radius:4px;font-weight:700;font-size:17px;display:flex;align-items:center;gap:8px}
 .btn.w{background:#fff;color:#000}.btn.w:hover{background:#ffffffbb}
 .btn.g{background:#6d6d6eb3}.btn.g:hover{background:#6d6d6e66}
-main{position:relative;z-index:3;margin-top:-14vh;padding-bottom:60px}
+main{position:relative;z-index:3;margin-top:-8vh;padding-bottom:60px}
 main.flat{margin-top:0;padding-top:96px}
 .row{margin:0 0 34px;position:relative}
 .row h2{font-size:20px;margin:0 4% 10px}
@@ -140,9 +140,9 @@ main.flat{margin-top:0;padding-top:96px}
 /* cuadro de actividad de todos */
 #app{position:relative}
 /* Encima de la portada, a la derecha, y siempre por encima de donde empiezan las filas:
-   las filas arrancan en (alto de la portada − 14vh), así que el cuadro termina 32px antes */
-.feed{--top:88px;position:absolute;z-index:4;right:4%;top:var(--top);width:330px;display:flex;flex-direction:column;
-  max-height:calc(max(80vh,420px) - 14vh - var(--top) - 32px);
+   las filas arrancan en (alto de la portada − 8vh), así que el cuadro termina 28px antes */
+.feed{--top:76px;position:absolute;z-index:4;right:4%;top:var(--top);width:330px;display:flex;flex-direction:column;
+  max-height:calc(max(62vh,380px) - 8vh - var(--top) - 28px);
   background:linear-gradient(160deg,#1c1c1ce6,#0d0d0de6);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
   border:1px solid #ffffff1a;border-radius:14px;box-shadow:0 18px 40px #0009;overflow:hidden}
 .feed .hd{display:flex;align-items:center;gap:12px;padding:14px 16px 12px;border-bottom:1px solid #ffffff12;flex:none}
@@ -178,7 +178,7 @@ main.flat{margin-top:0;padding-top:96px}
 .feed .fep{font-size:12px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .feed .none{color:var(--muted);font-size:13px;padding:14px 10px 16px;text-align:center;line-height:1.5}
 @media(min-width:901px){.hero .in{max-width:min(560px,calc(92% - 370px))}}
-@media(max-height:620px) and (min-width:901px){.feed{display:none}}
+@media(max-height:560px) and (min-width:901px){.feed{display:none}}
 @media(max-width:900px){#app{display:flex;flex-direction:column}.hero{order:1}main{order:3;margin-top:0}
   .feed{order:2;position:static;width:auto;max-height:340px;margin:0 4% 28px;backdrop-filter:none}}
 /* ===== saltar intro / siguiente episodio / saltar créditos ===== */
@@ -231,7 +231,7 @@ main.flat{margin-top:0;padding-top:96px}
 #pop h2{font-size:32px;margin-top:18px;animation:fadeup .5s .25s both}
 @keyframes popin{0%{transform:scale(0) rotate(-30deg)}60%{transform:scale(1.15) rotate(8deg)}100%{transform:none}}
 .toast{position:absolute;left:50%;top:14%;transform:translateX(-50%);background:#000c;padding:10px 20px;border-radius:6px;display:none}
-@media(max-width:700px){.card{width:44vw}nav input{width:110px}nav{gap:14px}.vol{display:none}.hero .in{bottom:30%}}
+@media(max-width:700px){.card{width:44vw}nav input{width:110px}nav{gap:14px}.vol{display:none}.hero .in{bottom:22%}}
 </style>
 </head>
 <body>
