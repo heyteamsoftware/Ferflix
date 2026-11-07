@@ -1,0 +1,7 @@
+# Credenciales: solo existen en el servidor
+api/config.php
+
+# Archivos subidos y generados
+media/
+
+.claude/

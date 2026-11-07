@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>FerFlix · Administración</title>
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>
+:root{--red:#e50914;--bg:#141414;--card:#1f1f1f;--line:#333;--muted:#9a9a9a}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:#fff;font-family:"Helvetica Neue",Arial,sans-serif;font-size:15px}
+header{display:flex;align-items:center;gap:24px;padding:16px 4%;border-bottom:1px solid var(--line)}
+header b{color:var(--red);font-size:24px;letter-spacing:1px}
+header a{color:#ddd;cursor:pointer}header a.on{color:#fff;font-weight:700;border-bottom:2px solid var(--red)}
+header .sp{flex:1}
+main{max-width:1000px;margin:28px auto;padding:0 20px}
+.card{background:var(--card);border-radius:8px;padding:22px;margin-bottom:20px}
+h2{font-size:19px;margin-bottom:14px}
+label{display:block;color:var(--muted);font-size:13px;margin:12px 0 4px}
+input,select,textarea,button{font:inherit}
+input,select,textarea{width:100%;background:#2b2b2b;border:1px solid #444;color:#fff;padding:9px 11px;border-radius:4px}
+textarea{min-height:70px;resize:vertical}
+.btn{background:var(--red);color:#fff;border:0;padding:10px 20px;border-radius:4px;font-weight:700;cursor:pointer}
+.btn:disabled{opacity:.5;cursor:default}.btn.s{background:#444;padding:6px 12px;font-size:13px}.btn.d{background:#7a1117;padding:6px 12px;font-size:13px}
+.seg{display:flex;gap:10px}.seg label{flex:1;margin:0;background:#2b2b2b;border:2px solid #444;border-radius:6px;padding:12px;text-align:center;cursor:pointer;color:#fff;font-size:15px}
+.seg input{display:none}.seg label.on{border-color:var(--red)}
+.drop{border:2px dashed #555;border-radius:8px;padding:34px;text-align:center;color:var(--muted);cursor:pointer;margin-top:14px}
+.drop.over{border-color:var(--red);color:#fff}
+.item{border:1px solid var(--line);border-radius:6px;padding:12px;margin-top:10px}
+.item .r{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.item .r input{width:auto;flex:1;min-width:120px}.item .r input.n{flex:0 0 70px;min-width:70px}
+.item small{color:var(--muted)}.item .subs{margin-top:8px;display:flex;gap:8px;flex-wrap:wrap}
+.chip{background:#333;border-radius:20px;padding:3px 10px;font-size:12px}
+.pbar{height:6px;background:#333;border-radius:3px;margin-top:10px;overflow:hidden}.pbar i{display:block;height:100%;width:0;background:var(--red)}
+.ok{color:#46d369}.err{color:#ff6b6b}.warn{color:#f5c542}
+.lib{display:flex;gap:16px}
+.lib .th{width:160px;aspect-ratio:16/9;background:#333 center/cover;border-radius:4px;flex:none}
+.lib .info{flex:1;min-width:0}
+.lib .po{width:62px;aspect-ratio:2/3;background:#333 center/cover;border-radius:4px;flex:none;display:flex;align-items:center;justify-content:center;font-size:10px;color:#888;text-align:center}
+.vid{display:flex;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line);font-size:13px;flex-wrap:wrap}
+.vid .nm{flex:1;min-width:140px}
+#login{max-width:340px;margin:18vh auto}
+.hide{display:none!important}
+@media(max-width:640px){.lib{flex-direction:column}.lib .th{width:100%}}
+</style>
+</head>
+<body>
+<div id="login" class="card hide">
+  <h2>FerFlix · Acceso</h2>
+  <label>Contraseña de administrador</label><input id="pw" type="password" autofocus>
+  <p class="err" id="lerr" style="margin-top:10px"></p>
+  <button class="btn" id="lbtn" style="margin-top:14px;width:100%">Entrar</button>
+</div>
+
+<div id="panel" class="hide">
+<header><b>FERFLIX</b><a class="on" data-tab="up">Subir</a><a data-tab="lib">Biblioteca</a><span class="sp"></span><a href="../" target="_blank">Ver web ↗</a><a id="logout">Salir</a></header>
+<main>
+  <section id="tab-up">
+    <div class="card">
+      <h2>1 · ¿Qué vas a subir?</h2>
+      <div class="seg" id="typeSeg">
+        <label class="on"><input type="radio" name="type" value="movie" checked>🎬 Película(s)</label>
+        <label><input type="radio" name="type" value="series">📺 Capítulos de una serie</label>
+      </div>
+      <div id="seriesBox" class="hide">
+        <label>Serie</label>
+        <select id="serieSel"></select>
+        <div id="newSerie">
+          <label>Nombre de la nueva serie</label><input id="serieName">
+          <label>Año (opcional)</label><input id="serieYear" type="number" min="1900" max="2100">
+          <label>Sinopsis (opcional)</label><textarea id="serieDesc"></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>2 · Archivos</h2>
+      <p style="color:var(--muted);font-size:13px">Arrastra vídeos (mp4, mkv, avi, mov, webm…) y, si quieres, sus subtítulos <b>.srt/.vtt</b> en la misma selección.
+      Se emparejan por nombre (<code>Peli.mkv</code> + <code>Peli.es.srt</code>). Los subtítulos incrustados en el vídeo se extraen solos.</p>
+      <div class="drop" id="drop">Arrastra aquí los archivos o haz clic para elegirlos<input id="files" type="file" multiple hidden accept=".mp4,.mkv,.webm,.avi,.mov,.m4v,.ts,.wmv,.flv,.srt,.vtt"></div>
+      <label style="display:flex;gap:10px;align-items:flex-start;color:#ddd;font-size:14px;margin-top:14px;cursor:pointer">
+        <input type="checkbox" id="hevcCopy" checked style="width:auto;margin-top:3px">
+        <span>⚡ Si el vídeo viene en HEVC (H.265), <b>no recodificarlo</b>: tarda segundos en vez de ~2 h por película.
+        <small style="display:block;color:var(--muted)">Se ve en Safari (iPhone/iPad/Mac), Edge, Chrome en ordenadores recientes y la mayoría de Android. No en Firefox ni en equipos antiguos.</small></span></label>
+      <div id="items"></div>
+      <div style="margin-top:16px;display:flex;gap:12px;align-items:center"><button class="btn" id="go" disabled>Subir todo</button><button class="btn s hide" id="stop">✕ Cancelar subida</button><span id="gmsg"></span></div>
+    </div>
+  </section>
+  <section id="tab-lib" class="hide">
+    <div style="margin-bottom:16px"><button class="btn s" id="cleanBtn">🧹 Limpiar archivos sobrantes</button> <small id="cleanMsg" style="color:var(--muted);margin-left:8px"></small></div>
+    <div id="libBox"></div></section>
+</main>
+</div>
+
+<script>
+const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const api=async(a,body,isForm)=>{
+  const r=await fetch('../api/admin.php?action='+a,{method:'POST',headers:isForm?{}:{'Content-Type':'application/json'},body:isForm?body:JSON.stringify(body||{})});
+  if(r.status===401){show(false);throw new Error('Sesión caducada')}
+  const j=await r.json(); if(!r.ok)throw new Error(j.error||'Error'); return j;
+};
+function show(ok){$('#login').classList.toggle('hide',ok);$('#panel').classList.toggle('hide',!ok)}
+async function init(){const j=await (await fetch('../api/auth.php')).json();show(j.admin);if(j.admin)loadSeries()}
+$('#lbtn').onclick=async()=>{
+  const r=await fetch('../api/auth.php?action=login',{method:'POST',body:JSON.stringify({password:$('#pw').value})});
+  const j=await r.json().catch(()=>({}));
+  if(r.ok){show(true);loadSeries()}
+  else if(j.locked)$('#lerr').textContent=`Demasiados intentos. Vuelve en ${Math.ceil(j.locked/60)} min.`;
+  else $('#lerr').textContent=`Contraseña incorrecta. Te queda ${j.left??0} intento.`;
+};
+$('#pw').onkeydown=e=>{if(e.key==='Enter')$('#lbtn').click()};
+$('#logout').onclick=async()=>{await fetch('../api/auth.php?action=logout');show(false)};
+document.querySelectorAll('header [data-tab]').forEach(a=>a.onclick=()=>{
+  document.querySelectorAll('header [data-tab]').forEach(x=>x.classList.toggle('on',x===a));
+  $('#tab-up').classList.toggle('hide',a.dataset.tab!=='up');$('#tab-lib').classList.toggle('hide',a.dataset.tab!=='lib');
+  if(a.dataset.tab==='lib')loadLib();
+});
+
+/* ---------- tipo ---------- */
+let TYPE='movie', SERIES=[];
+document.querySelectorAll('#typeSeg label').forEach(l=>l.onclick=()=>{
+  document.querySelectorAll('#typeSeg label').forEach(x=>x.classList.toggle('on',x===l));
+  TYPE=l.querySelector('input').value; $('#seriesBox').classList.toggle('hide',TYPE!=='series'); build();
+});
+async function loadSeries(){
+  const all=await api('list'); SERIES=all.filter(t=>t.type==='series');
+  $('#serieSel').innerHTML='<option value="">➕ Nueva serie…</option>'+SERIES.map(s=>`<option value="${s.id}">${esc(s.title)}</option>`).join('');
+  $('#newSerie').classList.toggle('hide',!!$('#serieSel').value);
+}
+$('#serieSel').onchange=()=>{$('#newSerie').classList.toggle('hide',!!$('#serieSel').value);build()};
+
+/* ---------- selección de archivos ---------- */
+let ITEMS=[], SUBS=[]; // ITEMS: {file,title,season,episode,name,subs:[]}
+const MAX=10*1024**3; // límite por vídeo: 10 GB
+const VID=/\.(mp4|mkv|webm|avi|mov|m4v|ts|wmv|flv)$/i, SUB=/\.(srt|vtt)$/i;
+const base=n=>n.replace(/\.[^.]+$/,'');
+const clean=n=>{let s=base(n).replace(/[._]+/g,' ');
+  const m=s.match(/[(\[{]((?:19|20)\d{2})[)\]}]/)||s.match(/\s((?:19|20)\d{2})(?:\s|$)/); if(m)s=s.slice(0,m.index);
+  return s.replace(/[(\[{].*$/,'').replace(/\b(1080p|720p|480p|2160p|4k|x264|x265|h264|h265|hevc|bluray|brrip|bdrip|dvdrip|web-?dl|webrip|hdrip|hd|castellano|spanish|english|latino|dual|subs?)\b.*$/i,'').replace(/\s+/g,' ').replace(/^[\s-]+|[\s-]+$/g,'')||base(n)};
+function parseEp(n){let m=n.match(/[sS](\d{1,2})[ ._-]*[eE](\d{1,3})/)||n.match(/\b(\d{1,2})x(\d{2,3})\b/);
+  if(m)return{s:+m[1],e:+m[2]}; m=n.match(/[eE]p?(?:isode)?[ ._-]?(\d{1,3})/); return m?{s:1,e:+m[1]}:{s:1,e:null}}
+function subLang(n){const m=base(n).match(/[.\-_ ]([a-z]{2,3})$/i);return m?m[1].toLowerCase():'es'}
+$('#drop').onclick=()=>$('#files').click();
+$('#files').onchange=e=>add([...e.target.files]);
+['dragover','dragenter'].forEach(ev=>$('#drop').addEventListener(ev,e=>{e.preventDefault();$('#drop').classList.add('over')}));
+['dragleave','drop'].forEach(ev=>$('#drop').addEventListener(ev,e=>{e.preventDefault();$('#drop').classList.remove('over')}));
+$('#drop').addEventListener('drop',e=>add([...e.dataTransfer.files]));
+function add(files){
+  for(const f of files){
+    if(VID.test(f.name)&&f.size>MAX){alert(f.name+' supera el límite de 10 GB');continue}
+    if(VID.test(f.name)){const ep=parseEp(f.name);ITEMS.push({file:f,title:clean(f.name),season:ep.s,episode:ep.e,name:clean(f.name),subs:[],state:'wait'})}
+    else if(SUB.test(f.name))SUBS.push({file:f,lang:subLang(f.name)});
+  }
+  if(TYPE==='series')ITEMS.sort((a,b)=>(a.season-b.season)||((a.episode??999)-(b.episode??999))||a.file.name.localeCompare(b.file.name));
+  build();
+}
+function matchSubs(){
+  ITEMS.forEach(i=>i.subs=[]);
+  SUBS.forEach(s=>{s.unmatched=true;const sb=base(s.file.name).toLowerCase();
+    let best=null;for(const i of ITEMS){const vb=base(i.file.name).toLowerCase();if(sb.startsWith(vb)&&(!best||vb.length>base(best.file.name).length))best=i}
+    if(s.forced!=null)best=ITEMS[s.forced]||best;
+    if(best){best.subs.push(s);s.unmatched=false}});
+}
+function build(){
+  matchSubs();
+  const ser=TYPE==='series';
+  $('#items').innerHTML=ITEMS.map((it,k)=>`<div class="item" data-k="${k}"><div class="r">
+    ${ser?`<input class="n" type="number" data-f="season" value="${it.season??''}" placeholder="Temp."><input class="n" type="number" data-f="episode" value="${it.episode??''}" placeholder="Cap."><input data-f="name" value="${esc(it.name)}" placeholder="Nombre del capítulo">`
+         :`<input data-f="title" value="${esc(it.title)}" placeholder="Título de la película">`}
+    <button class="btn d" data-rm="${k}">✕</button></div>
+    <small>${esc(it.file.name)} · ${(it.file.size/1048576).toFixed(0)} MB</small>
+    <div class="subs">${it.subs.map(s=>`<span class="chip">💬 ${esc(s.file.name)} (${s.lang})</span>`).join('')||'<small>Sin subtítulos externos</small>'}</div>
+    <div class="pbar"><i></i></div><div class="st"></div></div>`).join('')
+    + SUBS.filter(s=>s.unmatched).map(s=>{const k=SUBS.indexOf(s);return `<div class="item"><span class="warn">⚠ Subtítulo sin vídeo:</span> ${esc(s.file.name)}
+      <select data-sub="${k}" style="margin-top:8px"><option value="">Asignar a…</option>${ITEMS.map((i,n)=>`<option value="${n}">${esc(i.file.name)}</option>`).join('')}</select></div>`}).join('');
+  $('#go').disabled=!ITEMS.length;
+}
+$('#items').addEventListener('input',e=>{const k=e.target.closest('.item')?.dataset.k;if(k!=null&&e.target.dataset.f)ITEMS[k][e.target.dataset.f]=e.target.value});
+$('#items').addEventListener('change',e=>{if(e.target.dataset.sub!=null&&e.target.value!==''){SUBS[e.target.dataset.sub].forced=+e.target.value;build()}});
+$('#items').addEventListener('click',e=>{const r=e.target.dataset.rm;if(r==null)return;
+  // durante la subida la ✕ cancela ese archivo (antes solo lo quitaba de la lista y seguía subiendo)
+  if(UPLOADING){const it=ITEMS[+r];if(it&&it.state!=='done'){it.cancel=true;e.target.disabled=true}return}
+  ITEMS.splice(+r,1);build()});
+
+/* ---------- subida ---------- */
+const CHUNK=1.5*1024*1024, hex=()=>[...crypto.getRandomValues(new Uint8Array(12))].map(b=>b.toString(16).padStart(2,'0')).join('');
+let UPLOADING=false, STOP=false;
+const ACTIVE=new Map();   // upload_id -> title_id de la película (para limpiar si se cancela)
+class Cancelled extends Error{constructor(){super('Subida cancelada')}}
+// avisa al servidor para que borre lo subido y la portada deje de mostrarlo
+function cancelOnServer(ids,titleIds,beacon){
+  const body=JSON.stringify({ids,title_ids:titleIds});
+  if(beacon&&navigator.sendBeacon)navigator.sendBeacon('../api/admin.php?action=upload_cancel',body);
+  else return api('upload_cancel',JSON.parse(body)).catch(()=>{});
+}
+addEventListener('pagehide',()=>{if(ACTIVE.size)cancelOnServer([...ACTIVE.keys()],[...ACTIVE.values()].filter(Boolean),true)});
+addEventListener('beforeunload',e=>{if(UPLOADING){e.preventDefault();e.returnValue=''}});
+async function uploadVideo(it,titleId,el,isMovie){
+  const uid=hex(), total=Math.max(1,Math.ceil(it.file.size/CHUNK)); let res;
+  ACTIVE.set(uid,isMovie?titleId:0);
+  try{
+  for(let i=0;i<total;i++){
+    if(it.cancel||STOP){await cancelOnServer([uid],isMovie?[titleId]:[]);throw new Cancelled()}
+    const fd=new FormData();
+    fd.append('upload_id',uid);fd.append('index',i);fd.append('total',total);fd.append('name',it.file.name);
+    fd.append('chunk',it.file.slice(i*CHUNK,(i+1)*CHUNK),'c');
+    // título, capítulo y tamaño van en cada trozo para que la portada muestre la subida
+    fd.append('title_id',titleId);fd.append('size',it.file.size);
+    fd.append('season',TYPE==='series'?(it.season??''):'');fd.append('episode',TYPE==='series'?(it.episode??''):'');
+    if(i===total-1){fd.append('vname',it.name||it.title||'');fd.append('hevc_copy',$('#hevcCopy').checked?'1':'0')}
+    for(let t=0;;t++){try{res=await api('upload_chunk',fd,true);break}catch(err){if(t>=3)throw err;await new Promise(r=>setTimeout(r,1500))}}
+    el.querySelector('.pbar i').style.width=((i+1)/total*100)+'%';
+    el.querySelector('.st').textContent=`Subiendo… ${Math.round((i+1)/total*100)}%`;
+  }
+  }finally{ACTIVE.delete(uid)}
+  return res.video_id;
+}
+$('#stop').onclick=()=>{STOP=true;$('#stop').disabled=true;$('#stop').textContent='Cancelando…'};
+$('#go').onclick=async()=>{
+  if(!ITEMS.length)return;
+  $('#go').disabled=true; $('#gmsg').textContent='';
+  UPLOADING=true; STOP=false; ITEMS.forEach(i=>i.cancel=false);
+  $('#stop').classList.remove('hide'); $('#stop').disabled=false; $('#stop').textContent='✕ Cancelar subida';
+  try{
+    let serieId=null;
+    if(TYPE==='series'){
+      serieId=$('#serieSel').value;
+      if(!serieId){
+        if(!$('#serieName').value.trim())throw new Error('Pon un nombre a la serie');
+        serieId=(await api('title_save',{type:'series',title:$('#serieName').value,year:$('#serieYear').value,description:$('#serieDesc').value,auto:!$('#serieDesc').value})).id;
+      }
+    }
+    const els=[...document.querySelectorAll('#items .item[data-k]')];
+    for(let k=0;k<ITEMS.length;k++){
+      const it=ITEMS[k], el=els[k];
+      if(it.state==='done')continue;
+      if(STOP||it.cancel){el.querySelector('.st').innerHTML='<span class="warn">Cancelada</span>';continue}
+      try{
+        const tid=serieId||(await api('title_save',{type:'movie',title:it.title||clean(it.file.name),auto:true})).id;
+        const vid=await uploadVideo(it,tid,el,!serieId);
+        for(const s of it.subs){const fd=new FormData();fd.append('video_id',vid);fd.append('lang',s.lang);fd.append('file',s.file);await api('sub_add',fd,true)}
+        it.state='done'; el.querySelector('.st').innerHTML='<span class="ok">✓ Subido. Se está procesando en el servidor (puede tardar unos minutos).</span>';
+      }catch(err){
+        if(err instanceof Cancelled){el.querySelector('.st').innerHTML='<span class="warn">Cancelada. Lo subido se ha borrado del servidor.</span>';el.querySelector('.pbar i').style.width='0'}
+        else el.querySelector('.st').innerHTML='<span class="err">✗ '+esc(err.message)+'</span>';
+      }
+    }
+    if(serieId){try{await api('tmdb_refresh',{id:serieId})}catch{}}  // nombres oficiales de capítulos (si hay clave TMDB)
+    // los cancelados salen de la lista; lo demás se queda para reintentar
+    ITEMS=ITEMS.filter(i=>!(i.cancel||(STOP&&i.state!=='done')));
+    const failed=ITEMS.filter(i=>i.state!=='done').length;
+    $('#gmsg').innerHTML=STOP?'<span class="warn">Subida cancelada.</span>':failed?`<span class="err">${failed} con error</span>`:'<span class="ok">Todo subido. Mira el estado en Biblioteca.</span>';
+    if(!failed){ITEMS=ITEMS.filter(i=>i.state!=='done');SUBS=[];setTimeout(()=>{build();loadSeries()},2500)}
+  }catch(err){$('#gmsg').innerHTML='<span class="err">'+esc(err.message)+'</span>'}
+  UPLOADING=false; $('#stop').classList.add('hide');
+  $('#go').disabled=!ITEMS.length;
+};
+
+/* ---------- biblioteca ---------- */
+const left=s=>s<60?'menos de 1 min':s<3600?`quedan ~${Math.ceil(s/60)} min`:`quedan ~${Math.floor(s/3600)} h ${Math.round(s%3600/60)} min`;
+let poll;
+async function loadLib(){
+  clearTimeout(poll);
+  const T=await api('list');
+  $('#libBox').innerHTML=T.map(t=>`<div class="card"><div class="lib">
+    <div class="th" style="${t.thumb?`background-image:url('../${esc(t.thumb)}')`:''}"></div>
+    ${t.type==='movie'?`<div class="po" title="Póster" style="${t.poster?`background-image:url('../${esc(t.poster)}')`:''}">${t.poster?'':'Sin póster'}</div>`:''}
+    <div class="info"><h2>${esc(t.title)} <small style="color:var(--muted);font-weight:400">${t.type==='series'?'Serie':'Película'}${t.year?' · '+t.year:''}</small></h2>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:8px">${esc(t.description||'')}</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn s" data-edit="${t.id}">Editar datos</button>
+        <button class="btn s" data-tmdb="${t.id}" data-q="${esc(t.title)}">🔍 Buscar info</button>
+        <label class="btn s" style="margin:0;color:#fff">Cambiar portada<input type="file" accept="image/*" hidden data-thumb="${t.id}"></label>
+        ${t.type==='movie'?`<label class="btn s" style="margin:0;color:#fff">Cambiar póster<input type="file" accept="image/*" hidden data-poster="${t.id}"></label>`:''}
+        <button class="btn d" data-delt="${t.id}">Eliminar</button></div>
+      ${t.videos.map(v=>`<div class="vid" data-vid="${v.id}">
+        ${t.type==='series'?`<input style="width:56px" value="${v.season??''}" data-vf="season" placeholder="T"><input style="width:56px" value="${v.episode??''}" data-vf="episode" placeholder="E">`:''}
+        <input class="nm" value="${esc(v.name)}" data-vf="name">
+        <span class="${v.status==='ready'?'ok':v.status==='error'?'err':'warn'}" ${v.error?`title="${esc(v.error)}"`:''}>${v.status==='ready'?'✓ listo':v.status==='error'?'✗ error':'⏳ '+esc(v.stage||'procesando')+(v.progress>0?' '+v.progress+'%':'')+(v.eta!=null?' · '+left(v.eta):'')}</span>
+        ${v.status==='processing'&&v.progress>0?`<span style="flex:0 0 100%;height:4px;background:#333;border-radius:2px"><i style="display:block;height:100%;width:${v.progress}%;background:var(--red);border-radius:2px"></i></span>`:''}
+        <span class="chip">💬 ${v.subs.length}</span>
+        <button class="btn s" data-savev="${v.id}">Guardar</button><label class="btn s" style="margin:0;color:#fff">+ SRT<input type="file" accept=".srt,.vtt" hidden data-addsub="${v.id}"></label><button class="btn d" data-delv="${v.id}">✕</button>
+        ${v.subs.map(s=>`<span class="chip">${esc(s.label)} <a href="#" data-dels="${s.id}" style="color:#f88;text-decoration:none">✕</a></span>`).join('')}
+      </div>`).join('')}
+    </div></div></div>`).join('')||'<p style="color:var(--muted)">Aún no hay contenido.</p>';
+  if(T.some(t=>t.videos.some(v=>v.status==='processing')))poll=setTimeout(loadLib,5000);
+}
+$('#cleanBtn').onclick=async()=>{
+  if(!confirm('Se borrarán del servidor los archivos que ya no pertenecen a ninguna película o serie (solo los de más de 24 h). ¿Seguir?'))return;
+  try{const r=await api('cleanup');$('#cleanMsg').textContent=r.files?`Borrados ${r.files} archivos (${r.mb} MB)`:'No hay nada que limpiar'}catch(err){alert(err.message)}
+};
+$('#libBox').addEventListener('click',async e=>{
+  const d=e.target.dataset; try{
+  if(d.delt&&confirm('¿Eliminar este título y todos sus archivos?')){await api('delete_title',{id:d.delt});loadLib()}
+  if(d.delv&&confirm('¿Eliminar este vídeo?')){await api('delete_video',{id:d.delv});loadLib()}
+  if(d.dels){e.preventDefault();await api('delete_sub',{id:d.dels});loadLib()}
+  if(d.savev){const r=e.target.closest('.vid');const g=f=>r.querySelector(`[data-vf=${f}]`)?.value??'';await api('video_save',{id:d.savev,name:g('name'),season:g('season'),episode:g('episode')});e.target.textContent='✓';setTimeout(()=>e.target.textContent='Guardar',900)}
+  if(d.tmdb){const q=prompt('¿Cómo se llama? (puedes añadir el año al final, p. ej. «Ex Machina 2014»)',d.q);if(q===null)return;
+    const ym=q.match(/\s((?:19|20)\d{2})$/);e.target.textContent='Buscando…';
+    await api('tmdb_refresh',{id:d.tmdb,query:q.replace(/\s((?:19|20)\d{2})$/,'').trim(),year:ym?ym[1]:''});loadLib()}
+  if(d.edit){const T=(await api('list')).find(x=>x.id==d.edit);const title=prompt('Título',T.title);if(title===null)return;
+    const description=prompt('Sinopsis',T.description||'');if(description===null)return;const year=prompt('Año',T.year||'');
+    await api('title_save',{id:T.id,type:T.type,title,description,year:year||''});loadLib()}
+  }catch(err){alert(err.message)}
+});
+$('#libBox').addEventListener('change',async e=>{
+  const d=e.target.dataset,f=e.target.files?.[0]; if(!f)return; const fd=new FormData();
+  try{
+    if(d.thumb){fd.append('title_id',d.thumb);fd.append('file',f);await api('thumb_set',fd,true)}
+    if(d.poster){fd.append('title_id',d.poster);fd.append('kind','poster');fd.append('file',f);await api('thumb_set',fd,true)}
+    if(d.addsub){fd.append('video_id',d.addsub);fd.append('lang',subLang(f.name));fd.append('file',f);await api('sub_add',fd,true)}
+    loadLib();
+  }catch(err){alert(err.message)}
+});
+init();
+</script>
+</body>
+</html>

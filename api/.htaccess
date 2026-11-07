@@ -1,0 +1,4 @@
+Options -Indexes
+<FilesMatch "^(config|lib|process|cleanup)\.php$">
+  Require all denied
+</FilesMatch>
