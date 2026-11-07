@@ -180,9 +180,15 @@ main.flat{margin-top:0;padding-top:70px}
 .fdrop{position:relative}
 .fbtn{position:relative;width:38px;height:38px;border-radius:50%;font-size:20px;display:flex;align-items:center;justify-content:center;transition:background .15s}
 .fbtn:hover,.fdrop.open .fbtn{background:#ffffff1f}
-.fbtn .cnt{position:absolute;top:-2px;right:-4px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:#46d369;color:#062b12;font-size:11px;font-weight:800;
-  display:none;align-items:center;justify-content:center;border:2px solid #141414;animation:ping 1.6s infinite}
-.fbtn .cnt.on{display:flex}
+.livenow{display:none;align-items:center;gap:8px;cursor:pointer;padding:3px 10px 3px 4px;border-radius:20px;background:#ffffff12;transition:background .15s}
+.livenow.on{display:flex}.livenow:hover{background:#ffffff24}
+.livenow .avs{display:flex}
+.livenow .lv{width:30px;height:30px;border-radius:50%;background:#2a2a2a;display:flex;align-items:center;justify-content:center;font-size:18px;
+  border:2px solid #46d369;margin-left:-8px;animation:ping 1.8s infinite}
+.livenow .lv:first-child{margin-left:0}
+.livenow .more{font-size:12px;color:#ddd;margin-left:4px}
+.livenow small{font-size:12px;color:#46d369;font-weight:700;white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:900px){.livenow small{display:none}}
 .fpanel{position:absolute;right:-60px;top:44px;display:none;z-index:60}
 .fdrop.open .fpanel{display:block;animation:fadeup .2s ease}
 @media(max-width:700px){.fpanel{position:fixed;left:8px;right:8px;top:56px}.fpanel .feed{width:auto}}
@@ -244,7 +250,8 @@ main.flat{margin-top:0;padding-top:70px}
   <a class="logo" href="#">FERFLIX</a>
   <a class="l on" data-f="all">Inicio</a><a class="l" data-f="series">Series</a><a class="l" data-f="movie">Películas</a>
   <input id="q" type="search" placeholder="Buscar títulos">
-  <div class="fdrop" id="fdrop" style="display:none"><button class="fbtn" id="fbtn" title="Lo que han visto">👀<span class="cnt" id="fcnt"></span></button>
+  <div class="livenow" id="liveNow"></div>
+  <div class="fdrop" id="fdrop" style="display:none"><button class="fbtn" id="fbtn" title="Lo que han visto">👀</button>
     <div class="fpanel" id="fpanel"></div></div>
   <div class="me" id="me" style="display:none"><span class="av" id="meAv"></span><span id="meName"></span>
     <div class="dd" id="meDd"><div id="switchP">🔄 Cambiar de perfil</div></div></div>
@@ -329,7 +336,7 @@ async function setProfile(p){
 }
 let WA=null, WSEL=null, ANIMALS=[], sugT;
 async function showWho(){
-  $('#who').classList.add('on'); document.body.style.overflow='hidden'; $('#me').style.display='none'; $('#fdrop').style.display='none';
+  $('#who').classList.add('on'); document.body.style.overflow='hidden'; $('#me').style.display='none'; $('#fdrop').style.display='none'; $('#liveNow').classList.remove('on');
   $('#wname').value=''; WSEL=null; WA=null; $('#werr').textContent=''; $('#wsug').classList.remove('on');
   if(!ANIMALS.length)ANIMALS=(await (await fetch('api/profiles.php')).json()).animals;
   $('#wanimals').innerHTML=ANIMALS.map(a=>`<button type="button" data-an="${a}">${a}</button>`).join('');
@@ -462,12 +469,17 @@ async function loadFeed(){
 }
 // pinta el desplegable y el contador verde de quién está viendo algo ahora (sin contarte a ti)
 function updateFeedUI(){
-  const live=FEED.filter(p=>p.watching&&(!ME||p.name!==ME.name)).length, c=$('#fcnt');
-  c.textContent=live; c.classList.toggle('on',live>0);
-  $('#fbtn').title=live?`Lo que han visto · ${live} viendo ahora`:'Lo que han visto';
+  const live=FEED.filter(p=>p.watching&&(!ME||p.name!==ME.name)), ln=$('#liveNow');
+  const what=w=>w.title+(w.type==='series'?` T${w.season??1}:E${w.episode??'?'}`:'');
+  ln.classList.toggle('on',live.length>0);
+  ln.title=live.map(p=>`${p.name} está viendo ${what(p.watching)}`).join('\n');
+  ln.innerHTML=live.length?`<span class="avs">${live.slice(0,4).map(p=>`<span class="lv">${p.animal}</span>`).join('')}</span>`
+    +(live.length>4?`<span class="more">+${live.length-4}</span>`:'')
+    +`<small>${live.length===1?`${esc(live[0].name)} · ${esc(what(live[0].watching))}`:`${live.length} viendo ahora`}</small>`:'';
   const pn=$('#fpanel'), sc=pn.querySelector('.list')?.scrollTop||0;
   pn.innerHTML=feedHtml(); const l=pn.querySelector('.list'); if(l)l.scrollTop=sc;
 }
+$('#liveNow').onclick=e=>{e.stopPropagation();$('#fdrop').classList.add('open');loadFeed()};
 $('#fbtn').onclick=e=>{e.stopPropagation();const d=$('#fdrop');d.classList.toggle('open');if(d.classList.contains('open'))loadFeed()};
 document.addEventListener('click',e=>{const inPanel=e.composedPath().some(n=>n.id==='fpanel');   // composedPath: sigue valiendo aunque el desplegable se repinte durante el clic
   if(!inPanel||e.target.closest('[data-t]'))$('#fdrop').classList.remove('open')});
