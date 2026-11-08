@@ -249,6 +249,15 @@ main.flat{margin-top:0;padding-top:70px}
 #pop .big{font-size:150px;line-height:1;animation:popin .7s cubic-bezier(.2,1.6,.4,1) both}
 #pop h2{font-size:32px;margin-top:18px;animation:fadeup .5s .25s both}
 @keyframes popin{0%{transform:scale(0) rotate(-30deg)}60%{transform:scale(1.15) rotate(8deg)}100%{transform:none}}
+/* ===== Chromecast ===== */
+google-cast-launcher{display:inline-block;width:26px;height:26px;cursor:pointer;--disconnected-color:#fff;--connected-color:#e50914}
+nav google-cast-launcher{width:24px;height:24px;opacity:.9}nav google-cast-launcher:hover{opacity:1}
+.castov{position:absolute;inset:0;z-index:1;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;
+  background:#000 center/cover;pointer-events:none}
+.castov::before{content:"";position:absolute;inset:0;background:#000000b3}
+.castov>*{position:relative}
+.castov.on{display:flex}
+.castov .tv{font-size:64px}.castov b{font-size:22px}.castov small{color:var(--muted)}
 .toast{position:absolute;left:50%;top:14%;transform:translateX(-50%);background:#000c;padding:10px 20px;border-radius:6px;display:none}
 @media(max-width:700px){.card{width:44vw}nav input{width:110px}nav{gap:14px}.vol{display:none}.hero .in{bottom:22%}}
 </style>
@@ -259,6 +268,7 @@ main.flat{margin-top:0;padding-top:70px}
   <a class="l on" data-f="all">Inicio</a><a class="l" data-f="series">Series</a><a class="l" data-f="movie">Películas</a>
   <input id="q" type="search" placeholder="Buscar títulos">
   <div class="livenow" id="liveNow"></div>
+  <google-cast-launcher id="castNav" title="Enviar a la tele (Chromecast)" style="display:none"></google-cast-launcher>
   <div class="fdrop" id="fdrop" style="display:none"><button class="fbtn" id="fbtn" title="Lo que han visto">👀</button>
     <div class="fpanel" id="fpanel"></div></div>
   <div class="me" id="me" style="display:none"><span class="av" id="meAv"></span><span id="meName"></span>
@@ -282,6 +292,7 @@ main.flat{margin-top:0;padding-top:70px}
 
 <div id="player">
   <video id="v" playsinline></video><audio id="a" preload="auto"></audio>
+  <div class="castov" id="castov"><span class="tv">📺</span><b>Reproduciendo en <span id="castDev">la tele</span></b><small>Usa estos controles para manejarla</small></div>
   <div class="spin" id="spin"></div><div class="toast" id="toast"></div>
   <div class="ui" id="ui">
     <div class="tp"><button class="back" id="pback" title="Volver">←</button><span id="ptitle"></span></div>
@@ -292,6 +303,7 @@ main.flat{margin-top:0;padding-top:70px}
         <button id="mute">🔊</button><input class="vol" id="vol" type="range" min="0" max="1" step=".05" value="1">
         <span class="time" id="time">0:00</span><span class="sp"></span>
         <button id="next" title="Siguiente episodio" style="display:none">⏭</button>
+        <google-cast-launcher id="castBtn" title="Enviar a la tele (Chromecast)" style="display:none"></google-cast-launcher>
         <button id="cc" title="Audio y subtítulos (C / A)">💬</button><button id="fs" title="Pantalla completa">⛶</button>
       </div>
     </div>
@@ -692,12 +704,68 @@ function setAudio(i,silent){
   applyVol(); if(!silent)store.set('mf_audio',au[i].lang); buildMenu();
 }
 function syncAudio(force){ if(!altAudio())return; if(force||Math.abs(A.currentTime-V.currentTime)>.3)A.currentTime=V.currentTime; }
+/* ---------- Chromecast ---------- */
+// Mientras se envía a la tele, el vídeo local queda en pausa y los controles manejan el Chromecast.
+let CAST=null;                     // {ctx, player, ctl, loaded, lastT}
+let castStart=0;                   // desde dónde empezar en la tele (progreso guardado)
+const casting=()=>!!(CAST&&CAST.loaded&&CAST.player.isConnected);
+const curT=()=>casting()?CAST.player.currentTime:V.currentTime;
+const curD=()=>casting()?(CAST.player.duration||V.duration||(cur&&cur.v.duration)||0):V.duration;
+const isPaused=()=>casting()?CAST.player.isPaused:V.paused;
+function seekTo(x){
+  x=Math.max(0,Math.min((curD()||1)-1,x));
+  if(casting()){CAST.player.currentTime=x;CAST.ctl.seek()}else V.currentTime=x;
+}
+const seekBy=d=>seekTo(curT()+d);
+window.__onGCastApiAvailable=ok=>{
+  if(!ok)return;   // navegador sin soporte (Firefox, Safari, iPhone): los botones no aparecen
+  const ctx=cast.framework.CastContext.getInstance();
+  ctx.setOptions({receiverApplicationId:chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,autoJoinPolicy:chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED});
+  const player=new cast.framework.RemotePlayer(), ctl=new cast.framework.RemotePlayerController(player), E=cast.framework.RemotePlayerEventType;
+  CAST={ctx,player,ctl,loaded:false,lastT:0};
+  $('#castNav').style.display=''; $('#castBtn').style.display='';
+  ctx.addEventListener(cast.framework.CastContextEventType.SESSION_STATE_CHANGED,e=>{
+    const S=cast.framework.SessionState;
+    if(e.sessionState===S.SESSION_STARTED||e.sessionState===S.SESSION_RESUMED){ if(cur)castLoad(); else toast2('📺 Conectado a la tele. Elige qué ver.') }
+    else if(e.sessionState===S.SESSION_ENDED){
+      const was=CAST.loaded, t=CAST.lastT; CAST.loaded=false; $('#castov').classList.remove('on');
+      if(cur&&was){V.currentTime=t||V.currentTime;V.play().catch(()=>{})}   // sigue en este dispositivo donde iba
+    }
+  });
+  ctl.addEventListener(E.CURRENT_TIME_CHANGED,()=>{if(casting()){CAST.lastT=player.currentTime;updateUI()}});
+  ctl.addEventListener(E.IS_PAUSED_CHANGED,()=>{if(!casting())return;
+    P_.classList.toggle('paused',player.isPaused);$('#pp').textContent=player.isPaused?'▶':'⏸';if(player.isPaused)saveProg(true)});
+  ctl.addEventListener(E.VOLUME_LEVEL_CHANGED,()=>{if(casting())$('#vol').value=player.volumeLevel});
+  ctl.addEventListener(E.PLAYER_STATE_CHANGED,()=>{
+    // la tele terminó el vídeo: lo mismo que al acabar en local (siguiente capítulo o cerrar)
+    if(casting()&&player.playerState===chrome.cast.media.PlayerState.IDLE&&CAST.lastT>curD()-8){CAST.loaded=false;onEnded()}
+  });
+};
+// carga en la tele el vídeo que se está reproduciendo (con enlaces firmados: la tele no tiene la cookie de acceso)
+async function castLoad(){
+  const s=CAST&&CAST.ctx.getCurrentSession(); if(!s||!cur)return;
+  CAST.loaded=false; const v=cur.v, from=V.currentTime>1?V.currentTime:castStart;
+  let j; try{j=await (await fetch('api/cast.php?video='+v.id)).json()}catch{return toast2('No se pudo preparar el vídeo para la tele')}
+  if(!cur||cur.v!==v)return;
+  const mi=new chrome.cast.media.MediaInfo(j.video,'video/mp4'); mi.streamType=chrome.cast.media.StreamType.BUFFERED;
+  const md=new chrome.cast.media.GenericMediaMetadata(); md.title=j.title; md.subtitle=j.subtitle; if(j.image)md.images=[new chrome.cast.Image(j.image)]; mi.metadata=md;
+  mi.tracks=j.subs.map((x,i)=>{const t=new chrome.cast.media.Track(i+1,chrome.cast.media.TrackType.TEXT);
+    t.trackContentId=x.url;t.trackContentType='text/vtt';t.subtype=chrome.cast.media.TextTrackType.SUBTITLES;t.name=x.label;t.language=x.lang;return t});
+  const st=new chrome.cast.media.TextTrackStyle(); st.backgroundColor='#00000099'; st.fontScale=1.1; mi.textTrackStyle=st;
+  const rq=new chrome.cast.media.LoadRequest(mi); rq.currentTime=from; rq.autoplay=true; rq.activeTrackIds=subIdx>=0?[subIdx+1]:[];
+  try{await s.loadMedia(rq)}catch(e){return toast2('La tele no pudo abrir el vídeo'+(typeof e==='string'?' ('+e+')':''))}
+  V.pause(); CAST.loaded=true; CAST.lastT=from;
+  $('#castDev').textContent=s.getCastDevice().friendlyName||'la tele';
+  $('#castov').style.backgroundImage=cur.t.thumb?`url('${cur.t.thumb}')`:''; $('#castov').classList.add('on');
+  P_.classList.remove('paused'); $('#pp').textContent='⏸'; buildMenu();
+}
+function toast2(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',3000)}
 /* saltar intro / siguiente episodio / saltar créditos */
 let upTimer=null, upDismissed=false, upLeft=0;
 const nextOf=()=>{if(!cur||cur.t.type!=='series')return null;return cur.t.videos[cur.t.videos.indexOf(cur.v)+1]||null};
 function skipState(){
-  if(!cur||!V.duration)return;
-  const t=V.currentTime, d=V.duration, sk=cur.t.skip||{}, nx=nextOf();
+  if(!cur||!curD())return;
+  const t=curT(), d=curD(), sk=cur.t.skip||{}, nx=nextOf();
   $('#skipIntro').classList.toggle('on',!!(sk.intro&&t>=sk.intro[0]&&t<sk.intro[1]-1));
   // los créditos empiezan "outro" segundos antes del final; en series sin definir, los últimos 20 s
   const outro=sk.outro!=null?sk.outro:(nx?20:null), outroAt=outro!=null?d-outro:Infinity, inOutro=t>=outroAt&&t<d-.3;
@@ -712,11 +780,11 @@ function showUpNext(nx){
   upLeft=10; $('#unCount').textContent=upLeft;
   const b=$('#unGo'); b.style.animation='none'; b.offsetWidth; b.style.animation='';   // reinicia la barra de cuenta atrás
   $('#upnext').classList.add('on');
-  upTimer=setInterval(()=>{if(V.paused)return; upLeft--; $('#unCount').textContent=upLeft; if(upLeft<=0){hideUpNext();nextEp()}},1000);
+  upTimer=setInterval(()=>{if(isPaused())return; upLeft--; $('#unCount').textContent=upLeft; if(upLeft<=0){hideUpNext();nextEp()}},1000);
 }
 function hideUpNext(){clearInterval(upTimer);upTimer=null;$('#upnext').classList.remove('on')}
-$('#skipIntro').onclick=e=>{e.stopPropagation();V.currentTime=cur.t.skip.intro[1];$('#skipIntro').classList.remove('on')};
-$('#skipCred').onclick=e=>{e.stopPropagation();V.currentTime=Math.max(0,V.duration-1);saveProg(true);closePlayer()};   // queda como vista
+$('#skipIntro').onclick=e=>{e.stopPropagation();seekTo(cur.t.skip.intro[1]);$('#skipIntro').classList.remove('on')};
+$('#skipCred').onclick=e=>{e.stopPropagation();saveProg(true,curD());closePlayer()};   // queda como vista
 $('#unGo').onclick=e=>{e.stopPropagation();hideUpNext();nextEp()};
 $('#unStay').onclick=e=>{e.stopPropagation();upDismissed=true;hideUpNext()};
 function startVideo(t,v){
@@ -728,29 +796,39 @@ function startVideo(t,v){
   $('#ptitle').textContent=t.title+(t.type==='series'?` — T${v.season??1}:E${v.episode??'?'} ${v.name}`:'');
   const idx=t.videos.indexOf(v); $('#next').style.display=t.type==='series'&&idx<t.videos.length-1?'':'none';
   const saved=prog()[v.id];
+  castStart=saved&&saved.t>15&&(!v.duration||saved.t<v.duration-30)?saved.t:0;
+  $('#castov').classList.remove('on');
   V.onloadedmetadata=()=>{ if(saved&&saved.t>15&&saved.t<V.duration-30)V.currentTime=saved.t;
     for(const tr of V.textTracks)tr.mode='hidden';
     const pa=store.get('mf_audio',null); const ai=v.audios.findIndex(x=>x.lang===pa); if(ai>0)setAudio(ai,true);
     const pref=store.get('mf_sub','off'); const i=[...V.textTracks].findIndex(x=>x.language===pref); setSub(pref==='off'?-1:i,true); };
-  V.play().catch(()=>{}); wake();
+  if(CAST&&CAST.ctx.getCurrentSession())castLoad();   // conectado a la tele (también si se conectó desde la portada)
+  else V.play().catch(()=>{});
+  wake();
 }
 function setSub(i,silent){
   subIdx=i; [...V.textTracks].forEach((tr,k)=>tr.mode=k===i?'showing':'hidden');
+  if(casting()){const ms=CAST.ctx.getCurrentSession().getMediaSession();
+    if(ms)ms.editTracksInfo(new chrome.cast.media.EditTracksInfoRequest(i>=0?[i+1]:[]),()=>{},()=>{})}
   if(!silent)store.set('mf_sub',i<0?'off':V.textTracks[i].language);
   buildMenu();
 }
 function buildMenu(){
   const m=$('#menu'); const tr=[...V.textTracks], au=cur?cur.v.audios:[];
-  m.innerHTML=(au.length>1?`<div class="h">Audio</div>`+au.map((x,i)=>`<div class="${audIdx===i?'sel':''}" data-a="${i}">${esc(x.label)}</div>`).join(''):'')
+  m.innerHTML=(au.length>1&&!casting()?`<div class="h">Audio</div>`+au.map((x,i)=>`<div class="${audIdx===i?'sel':''}" data-a="${i}">${esc(x.label)}</div>`).join(''):'')
     +`<div class="h">Subtítulos</div><div class="${subIdx<0?'sel':''}" data-i="-1">Sin subtítulos</div>`+tr.map((x,i)=>`<div class="${subIdx===i?'sel':''}" data-i="${i}">${esc(x.label)}</div>`).join('');
   m.querySelectorAll('div[data-i]').forEach(d=>d.onclick=e=>{e.stopPropagation();setSub(+d.dataset.i);m.classList.remove('on')});
   m.querySelectorAll('div[data-a]').forEach(d=>d.onclick=e=>{e.stopPropagation();setAudio(+d.dataset.a);m.classList.remove('on')});
 }
-function closePlayer(){ hideUpNext(); saveProg(true); V.pause(); A.pause(); A.removeAttribute('src'); V.removeAttribute('src'); V.load(); P_.classList.remove('on'); document.body.style.overflow=''; if(document.fullscreenElement)document.exitFullscreen(); cur=null; render(); setTimeout(loadFeed,800); }
-function saveProg(force){
-  if(!cur||!V.duration||!ME)return; const n=Date.now(); if(!force&&n-lastSave<10000)return; lastSave=n;
-  const done=V.currentTime>=V.duration*0.8, old=PROG[cur.v.id];   // vista = pasado el 80 %
-  const item={video_id:cur.v.id,t:Math.round(V.currentTime),done,ts:Math.round(n/1000)};
+function closePlayer(){ hideUpNext(); saveProg(true);
+  if(casting()){CAST.loaded=false;const ms=CAST.ctx.getCurrentSession()?.getMediaSession();if(ms)ms.stop(new chrome.cast.media.StopRequest(),()=>{},()=>{})}
+  $('#castov').classList.remove('on'); V.pause(); A.pause(); A.removeAttribute('src'); V.removeAttribute('src'); V.load(); P_.classList.remove('on'); document.body.style.overflow=''; if(document.fullscreenElement)document.exitFullscreen(); cur=null; render(); setTimeout(loadFeed,800); }
+function saveProg(force,at){
+  const d=curD(); if(!cur||!d||!ME)return;
+  if(casting()&&at==null&&CAST.player.currentTime<1)return;   // la tele aún no ha dicho por dónde va: no pisar el progreso con 0
+  const n=Date.now(); if(!force&&n-lastSave<10000)return; lastSave=n;
+  const t=at??curT(), done=t>=d*0.8, old=PROG[cur.v.id];   // vista = pasado el 80 %
+  const item={video_id:cur.v.id,t:Math.round(t),done,ts:Math.round(n/1000)};
   PROG[cur.v.id]={t:item.t,done:done||!!(old&&old.done),ts:item.ts};
   const body=JSON.stringify({profile:ME.id,...item});
   if(document.visibilityState==='hidden'&&navigator.sendBeacon)navigator.sendBeacon('api/progress.php',body);
@@ -759,10 +837,12 @@ function saveProg(force){
 function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',1200)}
 function wake(){P_.classList.remove('idle');clearTimeout(idleT);idleT=setTimeout(()=>{if(!V.paused&&!$('#menu').classList.contains('on'))P_.classList.add('idle')},3000)}
 function nextEp(){const i=cur.t.videos.indexOf(cur.v);if(i<cur.t.videos.length-1){saveProg(true);startVideo(cur.t,cur.t.videos[i+1])}}
-const toggle=()=>V.paused?V.play():V.pause();
+const toggle=()=>casting()?CAST.ctl.playOrPause():(V.paused?V.play():V.pause());
 $('#pback').onclick=closePlayer; $('#pp').onclick=toggle; V.onclick=toggle;
-$('#b10').onclick=()=>V.currentTime-=10; $('#f10').onclick=()=>V.currentTime+=10; $('#next').onclick=nextEp;
-$('#mute').onclick=()=>{userMuted=!userMuted;applyVol();updMute()}; $('#vol').oninput=e=>{V.volume=e.target.value;userMuted=false;applyVol();updMute()};
+$('#b10').onclick=()=>seekBy(-10); $('#f10').onclick=()=>seekBy(10); $('#next').onclick=nextEp;
+$('#mute').onclick=()=>{if(casting())return CAST.ctl.muteOrUnmute();userMuted=!userMuted;applyVol();updMute()};
+$('#vol').oninput=e=>{if(casting()){CAST.player.volumeLevel=+e.target.value;return CAST.ctl.setVolumeLevel()}
+  V.volume=e.target.value;userMuted=false;applyVol();updMute()};
 const updMute=()=>$('#mute').textContent=userMuted||V.volume===0?'🔇':'🔊';
 $('#cc').onclick=e=>{e.stopPropagation();buildMenu();$('#menu').classList.toggle('on')};
 $('#fs').onclick=()=>document.fullscreenElement?document.exitFullscreen():P_.requestFullscreen();
@@ -775,19 +855,22 @@ V.onratechange=()=>{A.playbackRate=V.playbackRate};
 V.onwaiting=()=>{$('#spin').style.display='block';if(altAudio())A.pause()};
 V.oncanplay=V.onplaying=()=>{$('#spin').style.display='none';if(altAudio()&&!V.paused){syncAudio(true);A.play().catch(()=>{})}};
 V.onvolumechange=()=>{A.volume=V.volume;updMute()};
-V.onended=()=>{ if(cur.t.type==='series'&&$('#next').style.display!=='none')nextEp(); else closePlayer(); };
-V.ontimeupdate=()=>{const d=V.duration||0,t=V.currentTime,p=d?t/d*100:0;
+function onEnded(){ if(cur.t.type==='series'&&$('#next').style.display!=='none')nextEp(); else closePlayer(); }
+V.onended=()=>{if(!casting())onEnded()};
+// barra de progreso y tiempo: con el vídeo local o, si se está enviando, con la tele
+function updateUI(){const d=curD()||0,t=curT(),p=d?t/d*100:0;
   $('#cur').style.width=p+'%';$('#dot').style.left=p+'%';$('#time').textContent=fmt(t)+' / '+fmt(d);
-  syncAudio(); skipState();
-  if(V.buffered.length)$('#buf').style.width=(V.buffered.end(V.buffered.length-1)/d*100)+'%'; saveProg()};
-$('#seek').onclick=e=>{const r=e.currentTarget.getBoundingClientRect();V.currentTime=(e.clientX-r.left)/r.width*V.duration};
+  skipState(); saveProg();
+  if(!casting()&&V.buffered.length)$('#buf').style.width=(V.buffered.end(V.buffered.length-1)/d*100)+'%'}
+V.ontimeupdate=()=>{if(casting())return; syncAudio(); updateUI()};
+$('#seek').onclick=e=>{const r=e.currentTarget.getBoundingClientRect();seekTo((e.clientX-r.left)/r.width*curD())};
 P_.onmousemove=wake; P_.ontouchstart=wake;
 addEventListener('beforeunload',()=>saveProg(true));
 addEventListener('keydown',e=>{
   if(!P_.classList.contains('on')||e.target.tagName==='INPUT')return; wake();
   const k=e.key;
   if(k===' '||k==='k'){e.preventDefault();toggle()}
-  else if(k==='ArrowRight'){V.currentTime+=10;toast('+10 s')} else if(k==='ArrowLeft'){V.currentTime-=10;toast('-10 s')}
+  else if(k==='ArrowRight'){seekBy(10);toast('+10 s')} else if(k==='ArrowLeft'){seekBy(-10);toast('-10 s')}
   else if(k==='ArrowUp'){e.preventDefault();V.volume=Math.min(1,V.volume+.1);toast('Volumen '+Math.round(V.volume*100)+'%')}
   else if(k==='ArrowDown'){e.preventDefault();V.volume=Math.max(0,V.volume-.1);toast('Volumen '+Math.round(V.volume*100)+'%')}
   else if(k==='f')$('#fs').onclick(); else if(k==='m')$('#mute').onclick();
@@ -797,5 +880,6 @@ addEventListener('keydown',e=>{
 });
 load();
 </script>
+<script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
 </body>
 </html>

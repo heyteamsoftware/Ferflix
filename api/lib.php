@@ -74,6 +74,11 @@ function guarded_login($scope, $hash, $password, $onOk) {
     out(['error' => 'Contraseña incorrecta', 'left' => max(0, MAX_FAILS - $fails), 'locked' => $lock], $lock ? 429 : 401);
 }
 
+// Firma de los enlaces para el Chromecast (api/stream.php): archivo + caducidad, con una clave derivada de la de acceso
+function cast_sig($file, $exp) {
+    return hash_hmac('sha256', "$file|$exp", VIEWER_TOKEN . '|cast');
+}
+
 function media_url($rel) { return $rel ? 'media/' . $rel : null; }
 
 function srt_to_vtt($text) {
