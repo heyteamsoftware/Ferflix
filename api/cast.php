@@ -10,8 +10,7 @@ $v = $q->fetch();
 if (!$v) out(['error' => 'Vídeo no encontrado'], 404);
 
 $exp = time() + 6 * 3600;
-$base = 'https://' . $_SERVER['HTTP_HOST'] . dirname(dirname($_SERVER['SCRIPT_NAME']));
-$url = fn($f) => $f ? "$base/api/stream.php?f=" . rawurlencode($f) . "&e=$exp&s=" . cast_sig($f, $exp) : null;
+$url = fn($f) => signed_url($f, $exp);
 
 $subs = $pdo->prepare('SELECT label, lang, file FROM subtitles WHERE video_id=? ORDER BY id');
 $subs->execute([$v['id']]);

@@ -11,6 +11,7 @@ foreach (db()->query('SELECT video_id,label,lang,file FROM audios ORDER BY id')-
     $audBy[$a['video_id']][] = ['label' => $a['label'], 'lang' => $a['lang'], 'file' => media_url($a['file'])];
 $defBy = [];
 foreach (db()->query('SELECT id,audio_label,audio_lang FROM videos')->fetchAll() as $d) $defBy[$d['id']] = $d;
+$signExp = time() + 24 * 3600;
 $vidBy = [];
 foreach ($vids as $v) {
     // la primera pista va dentro del MP4 (file = null); el resto son archivos aparte
@@ -24,6 +25,7 @@ foreach ($vids as $v) {
         'season' => $v['season'] === null ? null : (int)$v['season'],
         'episode' => $v['episode'] === null ? null : (int)$v['episode'],
         'name' => $v['name'], 'file' => media_url($v['file']), 'duration' => (int)$v['duration'],
+        'signed' => signed_url($v['file'], $signExp),   // AirPlay: el Apple TV descarga el vídeo sin la cookie
         'subs' => $subBy[$v['id']] ?? [], 'audios' => $audios,
     ];
 }

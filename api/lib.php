@@ -79,6 +79,13 @@ function cast_sig($file, $exp) {
     return hash_hmac('sha256', "$file|$exp", VIEWER_TOKEN . '|cast');
 }
 
+// Enlace firmado y caducable a un archivo de media (para Chromecast y AirPlay, que no llevan la cookie de acceso)
+function signed_url($rel, $exp) {
+    if (!$rel) return null;
+    $base = 'https://' . $_SERVER['HTTP_HOST'] . dirname(dirname($_SERVER['SCRIPT_NAME']));
+    return "$base/api/stream.php?f=" . rawurlencode($rel) . "&e=$exp&s=" . cast_sig($rel, $exp);
+}
+
 function media_url($rel) { return $rel ? 'media/' . $rel : null; }
 
 function srt_to_vtt($text) {

@@ -291,7 +291,7 @@ nav google-cast-launcher{width:24px;height:24px;opacity:.9}nav google-cast-launc
 <div class="modal" id="modal"><div class="box" id="box"></div></div>
 
 <div id="player">
-  <video id="v" playsinline></video><audio id="a" preload="auto"></audio>
+  <video id="v" playsinline x-webkit-airplay="allow"></video><audio id="a" preload="auto"></audio>
   <div class="castov" id="castov"><span class="tv">📺</span><b>Reproduciendo en <span id="castDev">la tele</span></b><small>Usa estos controles para manejarla</small></div>
   <div class="spin" id="spin"></div><div class="toast" id="toast"></div>
   <div class="ui" id="ui">
@@ -304,6 +304,7 @@ nav google-cast-launcher{width:24px;height:24px;opacity:.9}nav google-cast-launc
         <span class="time" id="time">0:00</span><span class="sp"></span>
         <button id="next" title="Siguiente episodio" style="display:none">⏭</button>
         <google-cast-launcher id="castBtn" title="Enviar a la tele (Chromecast)" style="display:none"></google-cast-launcher>
+        <button id="airBtn" title="Enviar por AirPlay (Apple TV)" style="display:none;line-height:0"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M5 17H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h18a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/><path d="M12 15l5 6H7z" fill="currentColor"/></svg></button>
         <button id="cc" title="Audio y subtítulos (C / A)">💬</button><button id="fs" title="Pantalla completa">⛶</button>
       </div>
     </div>
@@ -759,6 +760,21 @@ async function castLoad(){
   $('#castov').style.backgroundImage=cur.t.thumb?`url('${cur.t.thumb}')`:''; $('#castov').classList.add('on');
   P_.classList.remove('paused'); $('#pp').textContent='⏸'; buildMenu();
 }
+/* ---------- AirPlay (Safari en iPhone, iPad y Mac) ---------- */
+// El propio <video> se envía al Apple TV: los controles normales siguen funcionando. Solo va el audio principal.
+const AIRPLAY=!!window.WebKitPlaybackTargetAvailabilityEvent;
+const airOn=()=>!!V.webkitCurrentPlaybackTargetIsWireless;
+if(AIRPLAY){
+  V.addEventListener('webkitplaybacktargetavailabilitychanged',e=>{$('#airBtn').style.display=e.availability==='available'?'':'none'});
+  V.addEventListener('webkitcurrentplaybacktargetiswirelesschanged',()=>{
+    const on=airOn();
+    if(on&&altAudio())setAudio(0,true);   // el audio alternativo va en un archivo aparte: por AirPlay solo suena el principal
+    $('#castDev').textContent='AirPlay';
+    $('#castov').style.backgroundImage=on&&cur&&cur.t.thumb?`url('${cur.t.thumb}')`:'';
+    $('#castov').classList.toggle('on',on); buildMenu();
+  });
+}
+$('#airBtn').onclick=e=>{e.stopPropagation();V.webkitShowPlaybackTargetPicker()};
 function toast2(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',3000)}
 /* saltar intro / siguiente episodio / saltar créditos */
 let upTimer=null, upDismissed=false, upLeft=0;
@@ -791,7 +807,7 @@ function startVideo(t,v){
   hideUpNext(); upDismissed=false; $('#skipIntro').classList.remove('on'); $('#skipCred').classList.remove('on');
   cur={t,v}; closeModal(); P_.classList.add('on'); document.body.style.overflow='hidden';
   audIdx=0; A.pause(); A.removeAttribute('src'); applyVol();
-  V.innerHTML=''; V.src=v.file;
+  V.innerHTML=''; V.src=AIRPLAY&&v.signed?v.signed:v.file;
   v.subs.forEach((s,i)=>{const tr=document.createElement('track');tr.kind='subtitles';tr.label=s.label;tr.srclang=s.lang;tr.src=s.file;V.appendChild(tr)});
   $('#ptitle').textContent=t.title+(t.type==='series'?` — T${v.season??1}:E${v.episode??'?'} ${v.name}`:'');
   const idx=t.videos.indexOf(v); $('#next').style.display=t.type==='series'&&idx<t.videos.length-1?'':'none';
@@ -815,7 +831,7 @@ function setSub(i,silent){
 }
 function buildMenu(){
   const m=$('#menu'); const tr=[...V.textTracks], au=cur?cur.v.audios:[];
-  m.innerHTML=(au.length>1&&!casting()?`<div class="h">Audio</div>`+au.map((x,i)=>`<div class="${audIdx===i?'sel':''}" data-a="${i}">${esc(x.label)}</div>`).join(''):'')
+  m.innerHTML=(au.length>1&&!casting()&&!airOn()?`<div class="h">Audio</div>`+au.map((x,i)=>`<div class="${audIdx===i?'sel':''}" data-a="${i}">${esc(x.label)}</div>`).join(''):'')
     +`<div class="h">Subtítulos</div><div class="${subIdx<0?'sel':''}" data-i="-1">Sin subtítulos</div>`+tr.map((x,i)=>`<div class="${subIdx===i?'sel':''}" data-i="${i}">${esc(x.label)}</div>`).join('');
   m.querySelectorAll('div[data-i]').forEach(d=>d.onclick=e=>{e.stopPropagation();setSub(+d.dataset.i);m.classList.remove('on')});
   m.querySelectorAll('div[data-a]').forEach(d=>d.onclick=e=>{e.stopPropagation();setAudio(+d.dataset.a);m.classList.remove('on')});
