@@ -258,6 +258,24 @@ main.flat{margin-top:0;padding-top:70px}
 .castov>*{position:relative}
 .castov.on{display:flex}
 .castov .tv{font-size:64px}.castov b{font-size:22px}.castov small{color:var(--muted)}
+/* minirreproductor: manejar la tele mientras se navega por FerFlix */
+.mini{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:70;display:none;align-items:center;gap:12px;
+  width:min(720px,calc(100vw - 24px));padding:10px 12px;border-radius:14px;background:#1b1b1bf2;border:1px solid #ffffff22;
+  box-shadow:0 18px 50px #000d;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+.mini.on{display:flex;animation:fadeup .3s ease}
+body.hasmini main{padding-bottom:120px}
+.mini .mth{flex:none;width:96px;aspect-ratio:16/9;border-radius:6px;background:#2a2a2a center/cover;cursor:pointer;position:relative}
+.mini .mth::after{content:"📺";position:absolute;right:-6px;bottom:-6px;font-size:16px;background:#e50914;border-radius:50%;width:24px;height:24px;
+  display:flex;align-items:center;justify-content:center}
+.mini .mtx{flex:1;min-width:0}
+.mini .mtx b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini .mtx small{display:block;font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:1px 0 6px}
+.mini .mbar{height:4px;background:#ffffff2e;border-radius:2px;cursor:pointer;position:relative}
+.mini .mbar i{position:absolute;left:0;top:0;bottom:0;background:var(--red);border-radius:2px}
+.mini .mtime{font-size:11px;color:var(--muted);margin-top:4px}
+.mini button{flex:none;width:38px;height:38px;border-radius:50%;font-size:19px;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.mini button:hover{background:#ffffff1f}.mini #mPP{background:#fff;color:#000;font-size:17px}.mini #mPP:hover{background:#ddd}
+@media(max-width:600px){.mini .mth{width:64px}.mini #mB10,.mini #mF10{display:none}}
 .toast{position:absolute;left:50%;top:14%;transform:translateX(-50%);background:#000c;padding:10px 20px;border-radius:6px;display:none}
 @media(max-width:700px){.card{width:44vw}nav input{width:110px}nav{gap:14px}.vol{display:none}.hero .in{bottom:22%}}
 </style>
@@ -317,6 +335,12 @@ main.flat{margin-top:0;padding-top:70px}
       <div class="unbtns"><button class="btn w" id="unGo">▶ Ver ahora · <span id="unCount">10</span></button><button class="btn g" id="unStay">Ver créditos</button></div></div></div>
 </div>
 
+<div class="mini" id="mini">
+  <div class="mth" id="mTh" title="Abrir el reproductor"></div>
+  <div class="mtx"><b id="mTitle"></b><small id="mSub"></small><div class="mbar" id="mBar"><i id="mCur"></i></div><div class="mtime" id="mTime"></div></div>
+  <button id="mB10" title="-10 s">⟲</button><button id="mPP" title="Pausa / reproducir">⏸</button><button id="mF10" title="+10 s">⟳</button>
+  <button id="mOpen" title="Abrir el reproductor">⤢</button><button id="mStop" title="Dejar de ver en la tele">⏹</button>
+</div>
 <div id="intro"><div class="iw" id="iw"></div><span class="skipi">Pulsa para saltar</span></div>
 <div id="pop"><div class="big" id="popAv"></div><h2 id="popHi"></h2></div>
 
@@ -345,7 +369,7 @@ async function setProfile(p){
   $('#who').classList.remove('on'); document.body.style.overflow='';
   $('#me').style.display='flex'; $('#fdrop').style.display=''; $('#meAv').textContent=p.animal; $('#meName').textContent=p.name;
   PROG=await (await fetch('api/progress.php?profile='+p.id)).json();
-  loadFeed(); pollProc();
+  loadFeed(); pollProc(); setTimeout(tryAdopt,500);
   // pasa al perfil el progreso antiguo que había guardado en este navegador
   const old=store.get('mf_prog',null);
   if(old&&Object.keys(old).length){
@@ -734,13 +758,17 @@ window.__onGCastApiAvailable=ok=>{
     const S=cast.framework.SessionState;
     if(e.sessionState===S.SESSION_STARTED||e.sessionState===S.SESSION_RESUMED){ if(cur)castLoad(); else toast2('📺 Conectado a la tele. Elige qué ver.') }
     else if(e.sessionState===S.SESSION_ENDED){
-      const was=CAST.loaded, t=CAST.lastT; CAST.loaded=false; $('#castov').classList.remove('on');
+      const was=CAST.loaded, t=CAST.lastT;
+      if(cur&&was&&MINI){saveProg(true,t);CAST.loaded=false;MINI=false;hideMini();cur=null;render();return}   // estaba minimizado: se cierra
+      CAST.loaded=false; $('#castov').classList.remove('on');
       if(cur&&was){V.currentTime=t||V.currentTime;V.play().catch(()=>{})}   // sigue en este dispositivo donde iba
     }
   });
-  ctl.addEventListener(E.CURRENT_TIME_CHANGED,()=>{if(casting()){CAST.lastT=player.currentTime;updateUI()}});
+  ctl.addEventListener(E.CURRENT_TIME_CHANGED,()=>{if(casting()){CAST.lastT=player.currentTime;updateUI();updateMini()}});
+  // al abrir/recargar FerFlix con la tele ya reproduciendo algo nuestro: recuperar los controles
+  ctl.addEventListener(E.IS_MEDIA_LOADED_CHANGED,tryAdopt); ctl.addEventListener(E.MEDIA_INFO_CHANGED,tryAdopt);
   ctl.addEventListener(E.IS_PAUSED_CHANGED,()=>{if(!casting())return;
-    P_.classList.toggle('paused',player.isPaused);$('#pp').textContent=player.isPaused?'▶':'⏸';if(player.isPaused)saveProg(true)});
+    P_.classList.toggle('paused',player.isPaused);$('#pp').textContent=$('#mPP').textContent=player.isPaused?'▶':'⏸';if(player.isPaused)saveProg(true)});
   ctl.addEventListener(E.VOLUME_LEVEL_CHANGED,()=>{if(casting())$('#vol').value=player.volumeLevel});
   ctl.addEventListener(E.PLAYER_STATE_CHANGED,()=>{
     // la tele terminó el vídeo: lo mismo que al acabar en local (siguiente capítulo o cerrar)
@@ -764,6 +792,7 @@ async function castLoad(){
   $('#castDev').textContent=s.getCastDevice().friendlyName||'la tele';
   $('#castov').style.backgroundImage=cur.t.thumb?`url('${cur.t.thumb}')`:''; $('#castov').classList.add('on');
   P_.classList.remove('paused'); $('#pp').textContent='⏸'; buildMenu();
+  if(MINI)showMini();
 }
 /* ---------- AirPlay (Safari en iPhone, iPad y Mac) ---------- */
 // El propio <video> se envía al Apple TV: los controles normales siguen funcionando. Solo va el audio principal.
@@ -792,6 +821,40 @@ document.querySelectorAll('.castb').forEach(b=>b.onclick=e=>{
 });
 // si en 6 s el SDK no ha respondido (bloqueado), se muestra igual el botón para poder explicar el motivo
 if(IS_CHROMIUM)setTimeout(()=>{if(CAST_SDK===null)showCastBtns()},6000);
+/* ---------- minirreproductor ---------- */
+let MINI=false;
+function minimizePlayer(){
+  MINI=true; P_.classList.remove('on'); document.body.style.overflow='';
+  if(document.fullscreenElement)document.exitFullscreen();
+  showMini(); render();
+}
+function showMini(){
+  if(!cur)return; const t=cur.t, v=cur.v;
+  $('#mTh').style.backgroundImage=t.thumb?`url('${t.thumb}')`:'';
+  $('#mTitle').textContent=t.title;
+  $('#mSub').textContent=(t.type==='series'?`T${v.season??1}:E${v.episode??'?'} · ${v.name} · `:'')+'en '+($('#castDev').textContent||'la tele');
+  $('#mPP').textContent=isPaused()?'▶':'⏸';
+  $('#mini').classList.add('on'); document.body.classList.add('hasmini'); updateMini();
+}
+function hideMini(){$('#mini').classList.remove('on');document.body.classList.remove('hasmini')}
+function updateMini(){
+  if(!$('#mini').classList.contains('on'))return;
+  const d=curD()||0, t=curT(); $('#mCur').style.width=(d?t/d*100:0)+'%'; $('#mTime').textContent=fmt(t)+' / '+fmt(d);
+}
+function openFromMini(){MINI=false;hideMini();P_.classList.add('on');document.body.style.overflow='hidden';wake()}
+$('#mPP').onclick=()=>{if(casting())CAST.ctl.playOrPause()};
+$('#mB10').onclick=()=>seekBy(-10); $('#mF10').onclick=()=>seekBy(10);
+$('#mOpen').onclick=openFromMini; $('#mTh').onclick=openFromMini;
+$('#mStop').onclick=()=>closePlayer();
+$('#mBar').onclick=e=>{const r=e.currentTarget.getBoundingClientRect();seekTo((e.clientX-r.left)/r.width*curD())};
+// ¿la tele está reproduciendo un vídeo de FerFlix y esta página no lo sabe? (al abrir o recargar)
+function tryAdopt(){
+  if(!CAST||cur||!CAT.length||!ME)return;
+  const pl=CAST.player, id=pl.isMediaLoaded&&pl.mediaInfo&&pl.mediaInfo.contentId; if(!id)return;
+  const m=/[?&]f=([^&]+)/.exec(id); if(!m)return;
+  const file='media/'+decodeURIComponent(m[1]);
+  for(const t of CAT){const v=t.videos.find(x=>x.file===file); if(v){startVideo(t,v,{adopt:true});return}}
+}
 function toast2(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',3000)}
 /* saltar intro / siguiente episodio / saltar créditos */
 let upTimer=null, upDismissed=false, upLeft=0;
@@ -820,9 +883,10 @@ $('#skipIntro').onclick=e=>{e.stopPropagation();seekTo(cur.t.skip.intro[1]);$('#
 $('#skipCred').onclick=e=>{e.stopPropagation();saveProg(true,curD());closePlayer()};   // queda como vista
 $('#unGo').onclick=e=>{e.stopPropagation();hideUpNext();nextEp()};
 $('#unStay').onclick=e=>{e.stopPropagation();upDismissed=true;hideUpNext()};
-function startVideo(t,v){
+function startVideo(t,v,opts={}){
   hideUpNext(); upDismissed=false; $('#skipIntro').classList.remove('on'); $('#skipCred').classList.remove('on');
-  cur={t,v}; closeModal(); P_.classList.add('on'); document.body.style.overflow='hidden';
+  cur={t,v}; closeModal();
+  if(!MINI&&!opts.adopt){P_.classList.add('on'); document.body.style.overflow='hidden';}   // minimizado: el siguiente capítulo sigue en la barra
   audIdx=0; A.pause(); A.removeAttribute('src'); applyVol();
   V.innerHTML=''; V.src=AIRPLAY&&v.signed?v.signed:v.file;
   v.subs.forEach((s,i)=>{const tr=document.createElement('track');tr.kind='subtitles';tr.label=s.label;tr.srclang=s.lang;tr.src=s.file;V.appendChild(tr)});
@@ -835,6 +899,12 @@ function startVideo(t,v){
     for(const tr of V.textTracks)tr.mode='hidden';
     const pa=store.get('mf_audio',null); const ai=v.audios.findIndex(x=>x.lang===pa); if(ai>0)setAudio(ai,true);
     const pref=store.get('mf_sub','off'); const i=[...V.textTracks].findIndex(x=>x.language===pref); setSub(pref==='off'?-1:i,true); };
+  if(opts.adopt){   // la tele ya está reproduciendo este vídeo (p. ej. tras recargar la página): solo enlazar los controles
+    CAST.loaded=true; CAST.lastT=CAST.player.currentTime;
+    $('#castDev').textContent=CAST.ctx.getCurrentSession()?.getCastDevice().friendlyName||'la tele';
+    $('#castov').style.backgroundImage=t.thumb?`url('${t.thumb}')`:''; $('#castov').classList.add('on');
+    MINI=true; showMini(); return;
+  }
   if(CAST&&CAST.ctx.getCurrentSession())castLoad();   // conectado a la tele (también si se conectó desde la portada)
   else V.play().catch(()=>{});
   wake();
@@ -853,7 +923,7 @@ function buildMenu(){
   m.querySelectorAll('div[data-i]').forEach(d=>d.onclick=e=>{e.stopPropagation();setSub(+d.dataset.i);m.classList.remove('on')});
   m.querySelectorAll('div[data-a]').forEach(d=>d.onclick=e=>{e.stopPropagation();setAudio(+d.dataset.a);m.classList.remove('on')});
 }
-function closePlayer(){ hideUpNext(); saveProg(true);
+function closePlayer(){ hideUpNext(); saveProg(true); MINI=false; hideMini();
   if(casting()){CAST.loaded=false;const ms=CAST.ctx.getCurrentSession()?.getMediaSession();if(ms)ms.stop(new chrome.cast.media.StopRequest(),()=>{},()=>{})}
   $('#castov').classList.remove('on'); V.pause(); A.pause(); A.removeAttribute('src'); V.removeAttribute('src'); V.load(); P_.classList.remove('on'); document.body.style.overflow=''; if(document.fullscreenElement)document.exitFullscreen(); cur=null; render(); setTimeout(loadFeed,800); }
 function saveProg(force,at){
@@ -871,7 +941,7 @@ function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';cl
 function wake(){P_.classList.remove('idle');clearTimeout(idleT);idleT=setTimeout(()=>{if(!V.paused&&!$('#menu').classList.contains('on'))P_.classList.add('idle')},3000)}
 function nextEp(){const i=cur.t.videos.indexOf(cur.v);if(i<cur.t.videos.length-1){saveProg(true);startVideo(cur.t,cur.t.videos[i+1])}}
 const toggle=()=>casting()?CAST.ctl.playOrPause():(V.paused?V.play():V.pause());
-$('#pback').onclick=closePlayer; $('#pp').onclick=toggle; V.onclick=toggle;
+$('#pback').onclick=()=>casting()?minimizePlayer():closePlayer(); $('#pp').onclick=toggle; V.onclick=toggle;
 $('#b10').onclick=()=>seekBy(-10); $('#f10').onclick=()=>seekBy(10); $('#next').onclick=nextEp;
 $('#mute').onclick=()=>{if(casting())return CAST.ctl.muteOrUnmute();userMuted=!userMuted;applyVol();updMute()};
 $('#vol').oninput=e=>{if(casting()){CAST.player.volumeLevel=+e.target.value;return CAST.ctl.setVolumeLevel()}
