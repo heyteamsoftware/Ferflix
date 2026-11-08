@@ -250,8 +250,8 @@ main.flat{margin-top:0;padding-top:70px}
 #pop h2{font-size:32px;margin-top:18px;animation:fadeup .5s .25s both}
 @keyframes popin{0%{transform:scale(0) rotate(-30deg)}60%{transform:scale(1.15) rotate(8deg)}100%{transform:none}}
 /* ===== Chromecast ===== */
-google-cast-launcher{display:inline-block;width:26px;height:26px;cursor:pointer;--disconnected-color:#fff;--connected-color:#e50914}
-nav google-cast-launcher{width:24px;height:24px;opacity:.9}nav google-cast-launcher:hover{opacity:1}
+.castb{display:none;line-height:0;color:#fff;opacity:.9;transition:color .2s}.castb.show{display:inline-block}
+.castb:hover{opacity:1}.castb.on{color:var(--red)}
 .castov{position:absolute;inset:0;z-index:1;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;
   background:#000 center/cover;pointer-events:none}
 .castov::before{content:"";position:absolute;inset:0;background:#000000b3}
@@ -268,7 +268,7 @@ nav google-cast-launcher{width:24px;height:24px;opacity:.9}nav google-cast-launc
   <a class="l on" data-f="all">Inicio</a><a class="l" data-f="series">Series</a><a class="l" data-f="movie">Películas</a>
   <input id="q" type="search" placeholder="Buscar títulos">
   <div class="livenow" id="liveNow"></div>
-  <google-cast-launcher id="castNav" title="Enviar a la tele (Chromecast)" style="display:none"></google-cast-launcher>
+  <button class="castb" id="castNav" title="Enviar a la tele (Chromecast)"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg></button>
   <div class="fdrop" id="fdrop" style="display:none"><button class="fbtn" id="fbtn" title="Lo que han visto">👀</button>
     <div class="fpanel" id="fpanel"></div></div>
   <div class="me" id="me" style="display:none"><span class="av" id="meAv"></span><span id="meName"></span>
@@ -303,7 +303,7 @@ nav google-cast-launcher{width:24px;height:24px;opacity:.9}nav google-cast-launc
         <button id="mute">🔊</button><input class="vol" id="vol" type="range" min="0" max="1" step=".05" value="1">
         <span class="time" id="time">0:00</span><span class="sp"></span>
         <button id="next" title="Siguiente episodio" style="display:none">⏭</button>
-        <google-cast-launcher id="castBtn" title="Enviar a la tele (Chromecast)" style="display:none"></google-cast-launcher>
+        <button class="castb" id="castBtn" title="Enviar a la tele (Chromecast)"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg></button>
         <button id="airBtn" title="Enviar por AirPlay (Apple TV)" style="display:none;line-height:0"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M5 17H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h18a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/><path d="M12 15l5 6H7z" fill="currentColor"/></svg></button>
         <button id="cc" title="Audio y subtítulos (C / A)">💬</button><button id="fs" title="Pantalla completa">⛶</button>
       </div>
@@ -719,12 +719,17 @@ function seekTo(x){
 }
 const seekBy=d=>seekTo(curT()+d);
 window.__onGCastApiAvailable=ok=>{
-  if(!ok)return;   // navegador sin soporte (Firefox, Safari, iPhone): los botones no aparecen
+  CAST_SDK=ok;
+  if(!ok){showCastBtns();return}   // Chrome/Edge sin envío activado: el botón explica qué pasa
   const ctx=cast.framework.CastContext.getInstance();
   ctx.setOptions({receiverApplicationId:chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,autoJoinPolicy:chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED});
   const player=new cast.framework.RemotePlayer(), ctl=new cast.framework.RemotePlayerController(player), E=cast.framework.RemotePlayerEventType;
   CAST={ctx,player,ctl,loaded:false,lastT:0};
-  $('#castNav').style.display=''; $('#castBtn').style.display='';
+  showCastBtns();
+  ctx.addEventListener(cast.framework.CastContextEventType.CAST_STATE_CHANGED,e=>{
+    const st=e.castState, C=cast.framework.CastState;
+    document.querySelectorAll('.castb').forEach(b=>{b.classList.toggle('on',st===C.CONNECTED);
+      b.title=st===C.CONNECTED?'Conectado a la tele · pulsa para desconectar':st===C.NO_DEVICES_AVAILABLE?'No se encuentra ningún Chromecast en tu Wi-Fi':'Enviar a la tele (Chromecast)'})});
   ctx.addEventListener(cast.framework.CastContextEventType.SESSION_STATE_CHANGED,e=>{
     const S=cast.framework.SessionState;
     if(e.sessionState===S.SESSION_STARTED||e.sessionState===S.SESSION_RESUMED){ if(cur)castLoad(); else toast2('📺 Conectado a la tele. Elige qué ver.') }
@@ -775,6 +780,18 @@ if(AIRPLAY){
   });
 }
 $('#airBtn').onclick=e=>{e.stopPropagation();V.webkitShowPlaybackTargetPicker()};
+// botones de Chromecast: solo en navegadores basados en Chrome (Chrome, Edge, Brave, Opera…)
+let CAST_SDK=null;
+const IS_CHROMIUM=!!window.chrome&&!AIRPLAY;
+function showCastBtns(){document.querySelectorAll('.castb').forEach(b=>b.classList.add('show'))}
+document.querySelectorAll('.castb').forEach(b=>b.onclick=e=>{
+  e.stopPropagation();
+  if(CAST_SDK===null)return toast2('No se pudo cargar Chromecast. Si usas un bloqueador de anuncios, desactívalo para esta web.');
+  if(CAST_SDK===false)return toast2('Este navegador tiene desactivado el envío a la tele. Usa Chrome o Edge actualizados.');
+  CAST.ctx.requestSession().catch(err=>{if(err&&err!=='cancel')toast2(err==='receiver_unavailable'?'No se encuentra ningún Chromecast en tu Wi-Fi':'No se pudo conectar ('+err+')')});
+});
+// si en 6 s el SDK no ha respondido (bloqueado), se muestra igual el botón para poder explicar el motivo
+if(IS_CHROMIUM)setTimeout(()=>{if(CAST_SDK===null)showCastBtns()},6000);
 function toast2(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',3000)}
 /* saltar intro / siguiente episodio / saltar créditos */
 let upTimer=null, upDismissed=false, upLeft=0;
