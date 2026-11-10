@@ -48,6 +48,12 @@ case 'skip_save':
     $pdo->prepare('UPDATE titles SET intro_start=?, intro_end=?, outro=? WHERE id=?')->execute([$is, $ie, $ou, (int)($in['id'] ?? 0)]);
     out(['ok' => true]);
 
+case 'lock_save':
+    // bloquear un título con un aviso (vacío = desbloquear)
+    $msg = trim((string)($in['msg'] ?? ''));
+    $pdo->prepare('UPDATE titles SET lock_msg=? WHERE id=?')->execute([$msg === '' ? null : mb_substr($msg, 0, 200), (int)($in['id'] ?? 0)]);
+    out(['ok' => true]);
+
 case 'disk':
     // espacio del disco donde se guardan los vídeos
     out(['free' => (int)disk_free_space(MEDIA_DIR), 'total' => (int)disk_total_space(MEDIA_DIR)]);

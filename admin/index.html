@@ -302,7 +302,9 @@ async function loadLib(){
         <button class="btn s" data-tmdb="${t.id}" data-q="${esc(t.title)}">🔍 Buscar info</button>
         <label class="btn s" style="margin:0;color:#fff">Cambiar portada<input type="file" accept="image/*" hidden data-thumb="${t.id}"></label>
         ${t.type==='movie'?`<label class="btn s" style="margin:0;color:#fff">Cambiar póster<input type="file" accept="image/*" hidden data-poster="${t.id}"></label>`:''}
+        ${t.lock_msg?`<button class="btn s" data-unlock="${t.id}" title="${esc(t.lock_msg)}">🔓 Desbloquear</button>`:`<button class="btn s" data-lock="${t.id}">🔒 Bloquear</button>`}
         <button class="btn d" data-delt="${t.id}">Eliminar</button></div>
+      ${t.lock_msg?`<p class="warn" style="font-size:13px;margin-top:8px">🔒 Bloqueada: «${esc(t.lock_msg)}»</p>`:''}
       <div class="skip" data-skip="${t.id}">⏭ ${t.type==='series'?`Intro de <input data-k="intro_start" value="${mmss(t.intro_start)}" placeholder="0:00"> a
         <input data-k="intro_end" value="${mmss(t.intro_end)}" placeholder="1:30"> ·`:''}
         Créditos: los últimos <input data-k="outro" value="${mmss(t.outro)}" placeholder="${t.type==='series'?'0:45':'6:00'}">
@@ -330,6 +332,9 @@ $('#libBox').addEventListener('click',async e=>{
   if(d.delt&&confirm('¿Eliminar este título y todos sus archivos?')){await api('delete_title',{id:d.delt});loadLib()}
   if(d.delv&&confirm('¿Eliminar este vídeo?')){await api('delete_video',{id:d.delv});loadLib()}
   if(d.dels){e.preventDefault();await api('delete_sub',{id:d.dels});loadLib()}
+  if(d.lock){const m=prompt('Aviso que verá quien intente reproducirla:','Película reservada para el fin de semana');if(m===null||!m.trim())return;
+    await api('lock_save',{id:d.lock,msg:m});loadLib();return}
+  if(d.unlock){if(!confirm('¿Desbloquear este título para que se pueda ver?'))return;await api('lock_save',{id:d.unlock,msg:''});loadLib();return}
   if(d.saveskip){const r=e.target.closest('.skip'), g=k=>{const i=r.querySelector(`[data-k=${k}]`);return i?secs(i.value):''};
     await api('skip_save',{id:d.saveskip,intro_start:g('intro_start'),intro_end:g('intro_end'),outro:g('outro')});
     e.target.textContent='✓ Guardado';setTimeout(()=>e.target.textContent='Guardar',1200);return}
