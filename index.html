@@ -548,6 +548,9 @@ document.addEventListener('click',e=>{const inPanel=e.composedPath().some(n=>n.i
   if(!inPanel||e.target.closest('[data-t]'))$('#fdrop').classList.remove('open')});
 addEventListener('keydown',e=>{if(e.key==='Escape')$('#fdrop').classList.remove('open')});
 setInterval(()=>{if(ME&&!document.hidden&&!P_.classList.contains('on'))loadFeed()},30000);
+// cada 5 min se recarga el catálogo: así un bloqueo de fin de semana se abre/cierra sin tener que recargar la página
+setInterval(async()=>{if(!ME||document.hidden||P_.classList.contains('on')||$('#modal').classList.contains('on'))return;
+  try{const r=await fetch('api/catalog.php');if(r.ok){CAT=await r.json();render()}}catch{}},300000);
 function ago(ts){const s=Math.max(0,Date.now()/1000-ts);
   return s<60?'ahora mismo':s<3600?`hace ${Math.floor(s/60)} min`:s<86400?`hace ${Math.floor(s/3600)} h`:s<172800?'ayer':`hace ${Math.floor(s/86400)} días`}
 // personas desplegadas en el cuadro (se recuerda en este navegador)

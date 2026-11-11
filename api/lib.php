@@ -86,6 +86,17 @@ function signed_url($rel, $exp) {
     return "$base/api/stream.php?f=" . rawurlencode($rel) . "&e=$exp&s=" . cast_sig($rel, $exp);
 }
 
+// ¿Está bloqueado ahora? Con lock_weekend=1 se desbloquea solo cada fin de semana:
+// del viernes a las 14:00 al domingo a las 23:59, hora de Canarias.
+function lock_active($msg, $weekend) {
+    if ($msg === null) return false;
+    if (!$weekend) return true;
+    $now = new DateTime('now', new DateTimeZone('Atlantic/Canary'));
+    $dow = (int)$now->format('N');          // 1 = lunes … 7 = domingo
+    $open = ($dow === 5 && (int)$now->format('G') >= 14) || $dow >= 6;
+    return !$open;
+}
+
 function media_url($rel) { return $rel ? 'media/' . $rel : null; }
 
 function srt_to_vtt($text) {
