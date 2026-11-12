@@ -750,7 +750,7 @@ function render(){
     h+=rowHtml(`Ya visto por ${who}`,seen.map(x=>card(x.t,x.v)));
     // Películas en cuadrícula, por orden de subida (la última subida primero; CAT ya viene así del servidor)
     if(FILTER!=='series')h+=gridHtml('Películas',[...procOf('movie',true),...list.filter(t=>t.type==='movie'&&!t.external).map(posterCard)]);
-    if(FILTER!=='movie')h+=rowHtml('Series',[...procOf('series'),...list.filter(t=>t.type==='series').map(t=>card(t))]);
+    if(FILTER!=='movie')h+=rowHtml('Series',[...procOf('series'),...list.filter(t=>t.type==='series'&&!t.external).map(t=>card(t))]);
   }
   $('#app').innerHTML=h+'</main>';
   if(q&&!list.length)$('#app').innerHTML='<div class="empty" style="padding-top:30vh"><h2>Sin resultados</h2></div>';
