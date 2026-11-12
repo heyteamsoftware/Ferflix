@@ -16,6 +16,7 @@ function out($data, $code = 200) {
     http_response_code($code);
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
+    if (!headers_sent()) ob_start('ob_gzhandler');   // comprime si el navegador lo admite (el catálogo pesa cientos de KB)
     echo json_encode($data, JSON_UNESCAPED_UNICODE);
     exit;
 }
@@ -82,7 +83,7 @@ function cast_sig($file, $exp) {
 // Enlace firmado y caducable a un archivo de media (para Chromecast y AirPlay, que no llevan la cookie de acceso)
 function signed_url($rel, $exp) {
     if (!$rel) return null;
-    if (is_external($rel)) return $rel;   // las externas ya son un enlace público: no pasan por nuestro servidor
+    if (is_external($rel)) return is_youtube($rel) ? null : $rel;   // externas: ya son un enlace público (YouTube no se puede enviar tal cual)
     $base = 'https://' . $_SERVER['HTTP_HOST'] . dirname(dirname($_SERVER['SCRIPT_NAME']));
     return "$base/api/stream.php?f=" . rawurlencode($rel) . "&e=$exp&s=" . cast_sig($rel, $exp);
 }
@@ -100,6 +101,7 @@ function lock_active($msg, $weekend) {
 
 // Las películas «externas» guardan en videos.file la dirección completa (Internet Archive) en vez de un archivo nuestro
 function is_external($rel) { return (bool)preg_match('#^https?://#i', (string)$rel); }
+function is_youtube($rel) { return (bool)preg_match('#^https://www\.youtube\.com/watch\?v=#', (string)$rel); }
 function media_url($rel) { return $rel ? (is_external($rel) ? $rel : 'media/' . $rel) : null; }
 
 // Busca en un elemento de Internet Archive el MP4 que se puede reproducir. Devuelve [url, duration, title, year] o null.
@@ -128,7 +130,7 @@ function archive_item($ident) {
 }
 
 // Añade una película externa (alojada en Internet Archive). Devuelve ['id','title'] o ['error'].
-function external_add($pdo, $ident, $lang, $query = null, $year = null) {
+function external_add($pdo, $ident, $lang, $query = null, $year = null, $subs = null) {
     if (!preg_match('/^[A-Za-z0-9._-]{1,200}$/', $ident)) return ['error' => 'Enlace de Internet Archive no válido'];
     $q = $pdo->prepare('SELECT COUNT(*) FROM videos WHERE file LIKE ?');
     $q->execute(['https://archive.org/download/' . addcslashes(rawurlencode($ident), '%_') . '/%']);
@@ -137,8 +139,8 @@ function external_add($pdo, $ident, $lang, $query = null, $year = null) {
     if (!$it) return ['error' => 'No se encontró un vídeo MP4 reproducible en ese enlace'];
     [$ct, $cy] = clean_title($it['title']);
     $title = $query ?: ($ct ?: $it['title']);
-    $pdo->prepare('INSERT INTO titles(type,title,description,year,external,lang) VALUES(?,?,?,?,1,?)')
-        ->execute(['movie', $title, '', $year ?: ($it['year'] ?: $cy), mb_substr(trim((string)$lang), 0, 60) ?: null]);
+    $pdo->prepare("INSERT INTO titles(type,title,description,year,external,source,lang,subs) VALUES(?,?,?,?,1,'archive',?,?)")
+        ->execute(['movie', $title, '', $year ?: ($it['year'] ?: $cy), mb_substr(trim((string)$lang), 0, 60) ?: null, mb_substr(trim((string)$subs), 0, 60) ?: null]);
     $id = (int)$pdo->lastInsertId();
     $found = tmdb_apply($pdo, $id, $title, $year ?: ($it['year'] ?: $cy));
     $pdo->prepare('INSERT INTO videos(title_id,name,file,duration,status) VALUES(?,?,?,?,?)')
@@ -245,7 +247,8 @@ function tmdb_apply($pdo, $id, $query = null, $year = null) {
     }
     $pdo->prepare('UPDATE titles SET title=?, description=?, year=?, thumb=?, poster=?, tmdb_id=?, rating=? WHERE id=?')
         ->execute([$m['title'], $m['overview'], $m['year'], $thumb, $poster, $m['tmdb_id'], $m['rating'], $id]);
-    if ($t['type'] === 'series') tmdb_episodes($pdo, $id, $m['tmdb_id']);
+    // en las series externas (YouTube) los capítulos ya traen su nombre y su orden puede no coincidir con TMDB
+    if ($t['type'] === 'series' && empty($t['external'])) tmdb_episodes($pdo, $id, $m['tmdb_id']);
     return $m['title'];
 }
 

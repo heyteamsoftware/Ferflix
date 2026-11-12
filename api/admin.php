@@ -59,11 +59,12 @@ case 'external_add':
     // película alojada en Internet Archive: solo se guarda el enlace, la ficha y el póster
     $u = trim((string)($in['url'] ?? ''));
     $ident = preg_match('#archive\.org/(?:details|download|embed)/([^/?\#]+)#i', $u, $m) ? rawurldecode($m[1]) : $u;
-    $r = external_add($pdo, $ident, $in['lang'] ?? '', ($in['query'] ?? '') !== '' ? trim($in['query']) : null, ($in['year'] ?? '') !== '' ? (int)$in['year'] : null);
+    $r = external_add($pdo, $ident, $in['lang'] ?? '', ($in['query'] ?? '') !== '' ? trim($in['query']) : null, ($in['year'] ?? '') !== '' ? (int)$in['year'] : null, $in['subs'] ?? null);
     out($r, isset($r['error']) ? 400 : 200);
 
 case 'lang_save':
-    $pdo->prepare('UPDATE titles SET lang=? WHERE id=?')->execute([mb_substr(trim((string)($in['lang'] ?? '')), 0, 60) ?: null, (int)($in['id'] ?? 0)]);
+    $v = fn($k) => mb_substr(trim((string)($in[$k] ?? '')), 0, 60) ?: null;
+    $pdo->prepare('UPDATE titles SET lang=?, subs=? WHERE id=?')->execute([$v('lang'), $v('subs'), (int)($in['id'] ?? 0)]);
     out(['ok' => true]);
 
 case 'disk':
