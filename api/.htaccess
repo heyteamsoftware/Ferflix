@@ -1,4 +1,4 @@
 Options -Indexes
-<FilesMatch "^(config|lib|process|cleanup)\.php$">
+<FilesMatch "^(config|lib|process|cleanup|rtve_sync)\.php$">
   Require all denied
 </FilesMatch>

@@ -215,7 +215,7 @@ function tmdb_lookup($title, $year, $type) {
         'overview' => $overview,
         'image' => $res['backdrop_path'] ?: $res['poster_path'],
         'poster' => $res['poster_path'] ?? null,
-        'rating' => !empty($res['vote_count']) ? round((float)$res['vote_average'], 1) : null,
+        'rating' => ($res['vote_count'] ?? 0) >= 20 ? round((float)$res['vote_average'], 1) : null,
     ];
 }
 
