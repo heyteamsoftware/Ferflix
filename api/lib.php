@@ -82,6 +82,7 @@ function cast_sig($file, $exp) {
 // Enlace firmado y caducable a un archivo de media (para Chromecast y AirPlay, que no llevan la cookie de acceso)
 function signed_url($rel, $exp) {
     if (!$rel) return null;
+    if (is_external($rel)) return $rel;   // las externas ya son un enlace público: no pasan por nuestro servidor
     $base = 'https://' . $_SERVER['HTTP_HOST'] . dirname(dirname($_SERVER['SCRIPT_NAME']));
     return "$base/api/stream.php?f=" . rawurlencode($rel) . "&e=$exp&s=" . cast_sig($rel, $exp);
 }
@@ -97,7 +98,53 @@ function lock_active($msg, $weekend) {
     return !$open;
 }
 
-function media_url($rel) { return $rel ? 'media/' . $rel : null; }
+// Las películas «externas» guardan en videos.file la dirección completa (Internet Archive) en vez de un archivo nuestro
+function is_external($rel) { return (bool)preg_match('#^https?://#i', (string)$rel); }
+function media_url($rel) { return $rel ? (is_external($rel) ? $rel : 'media/' . $rel) : null; }
+
+// Busca en un elemento de Internet Archive el MP4 que se puede reproducir. Devuelve [url, duration, title, year] o null.
+function archive_item($ident) {
+    $ctx = stream_context_create(['http' => ['timeout' => 25, 'header' => "User-Agent: FerFlix\r\n"]]);
+    $j = json_decode(@file_get_contents('https://archive.org/metadata/' . rawurlencode($ident), false, $ctx) ?: '', true);
+    if (empty($j['files'])) return null;
+    $best = null; $score = -1;
+    foreach ($j['files'] as $f) {
+        if (!preg_match('/\.(mp4|m4v)$/i', $f['name'] ?? '')) continue;
+        // se prefiere el MP4 H.264 (se ve en cualquier navegador); a igualdad, el más grande (la película, no un tráiler)
+        $s = (stripos($f['format'] ?? '', 'h.264') !== false ? 1e13 : 0) + (float)($f['size'] ?? 0);
+        if ($s > $score) { $score = $s; $best = $f; }
+    }
+    if (!$best) return null;
+    $len = (string)($best['length'] ?? '');
+    $dur = 0;
+    if (strpos($len, ':') !== false) foreach (explode(':', $len) as $p) $dur = $dur * 60 + (float)$p; else $dur = (float)$len;
+    $md = $j['metadata'] ?? [];
+    $title = is_array($md['title'] ?? null) ? $md['title'][0] : ($md['title'] ?? $ident);
+    $year = preg_match('/((?:18|19|20)\d{2})/', (string)(is_array($md['year'] ?? null) ? $md['year'][0] : ($md['year'] ?? ($md['date'] ?? ''))), $m) ? (int)$m[1] : null;
+    return [
+        'url' => 'https://archive.org/download/' . rawurlencode($ident) . '/' . implode('/', array_map('rawurlencode', explode('/', $best['name']))),
+        'duration' => (int)round($dur), 'title' => $title, 'year' => $year,
+    ];
+}
+
+// Añade una película externa (alojada en Internet Archive). Devuelve ['id','title'] o ['error'].
+function external_add($pdo, $ident, $lang, $query = null, $year = null) {
+    if (!preg_match('/^[A-Za-z0-9._-]{1,200}$/', $ident)) return ['error' => 'Enlace de Internet Archive no válido'];
+    $q = $pdo->prepare('SELECT COUNT(*) FROM videos WHERE file LIKE ?');
+    $q->execute(['https://archive.org/download/' . addcslashes(rawurlencode($ident), '%_') . '/%']);
+    if ($q->fetchColumn()) return ['error' => 'Esa película ya está añadida'];
+    $it = archive_item($ident);
+    if (!$it) return ['error' => 'No se encontró un vídeo MP4 reproducible en ese enlace'];
+    [$ct, $cy] = clean_title($it['title']);
+    $title = $query ?: ($ct ?: $it['title']);
+    $pdo->prepare('INSERT INTO titles(type,title,description,year,external,lang) VALUES(?,?,?,?,1,?)')
+        ->execute(['movie', $title, '', $year ?: ($it['year'] ?: $cy), mb_substr(trim((string)$lang), 0, 60) ?: null]);
+    $id = (int)$pdo->lastInsertId();
+    $found = tmdb_apply($pdo, $id, $title, $year ?: ($it['year'] ?: $cy));
+    $pdo->prepare('INSERT INTO videos(title_id,name,file,duration,status) VALUES(?,?,?,?,?)')
+        ->execute([$id, $found ?: $title, $it['url'], $it['duration'], 'ready']);
+    return ['id' => $id, 'title' => $found ?: $title, 'found' => (bool)$found];
+}
 
 function srt_to_vtt($text) {
     $text = preg_replace('/^\xEF\xBB\xBF/', '', $text);
@@ -168,6 +215,7 @@ function tmdb_lookup($title, $year, $type) {
         'overview' => $overview,
         'image' => $res['backdrop_path'] ?: $res['poster_path'],
         'poster' => $res['poster_path'] ?? null,
+        'rating' => !empty($res['vote_count']) ? round((float)$res['vote_average'], 1) : null,
     ];
 }
 
@@ -195,8 +243,8 @@ function tmdb_apply($pdo, $id, $query = null, $year = null) {
         $poster = "thumbs/p{$id}_" . bin2hex(random_bytes(3)) . '.jpg';
         file_put_contents(MEDIA_DIR . "/$poster", $img);
     }
-    $pdo->prepare('UPDATE titles SET title=?, description=?, year=?, thumb=?, poster=?, tmdb_id=? WHERE id=?')
-        ->execute([$m['title'], $m['overview'], $m['year'], $thumb, $poster, $m['tmdb_id'], $id]);
+    $pdo->prepare('UPDATE titles SET title=?, description=?, year=?, thumb=?, poster=?, tmdb_id=?, rating=? WHERE id=?')
+        ->execute([$m['title'], $m['overview'], $m['year'], $thumb, $poster, $m['tmdb_id'], $m['rating'], $id]);
     if ($t['type'] === 'series') tmdb_episodes($pdo, $id, $m['tmdb_id']);
     return $m['title'];
 }

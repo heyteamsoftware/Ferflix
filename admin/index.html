@@ -94,6 +94,17 @@ textarea{min-height:70px;resize:vertical}
     </div>
   </section>
   <section id="tab-lib" class="hide">
+    <div class="card">
+      <h2>🌐 Añadir película externa</h2>
+      <p style="color:var(--muted);font-size:13px;margin-bottom:10px">Películas alojadas en <b>Internet Archive</b> (archive.org): no ocupan disco ni gastan conexión del servidor. Pega el enlace de la página de la película. Saldrán en la sección «Externas».</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input id="extUrl" placeholder="https://archive.org/details/…" style="flex:2 1 260px;margin:0">
+        <input id="extName" placeholder="Título para buscar la ficha (opcional)" style="flex:1 1 200px;margin:0">
+        <input id="extLang" list="extLangs" placeholder="Idioma" value="Castellano" style="flex:0 1 220px;margin:0">
+        <datalist id="extLangs"><option>Castellano</option><option>Español latino</option><option>Español</option><option>Inglés · subtítulos en español</option><option>Inglés</option><option>Muda</option></datalist>
+        <button class="btn" id="extAdd">Añadir</button></div>
+      <small id="extMsg" style="color:var(--muted);display:block;margin-top:8px"></small>
+    </div>
     <div style="margin-bottom:16px"><button class="btn s" id="cleanBtn">🧹 Limpiar archivos sobrantes</button> <small id="cleanMsg" style="color:var(--muted);margin-left:8px"></small></div>
     <div id="libBox"></div></section>
 </main>
@@ -303,7 +314,9 @@ async function loadLib(){
         <label class="btn s" style="margin:0;color:#fff">Cambiar portada<input type="file" accept="image/*" hidden data-thumb="${t.id}"></label>
         ${t.type==='movie'?`<label class="btn s" style="margin:0;color:#fff">Cambiar póster<input type="file" accept="image/*" hidden data-poster="${t.id}"></label>`:''}
         ${t.lock_msg?`<button class="btn s" data-unlock="${t.id}" title="${esc(t.lock_msg)}">🔓 Desbloquear</button>`:`<button class="btn s" data-lock="${t.id}">🔒 Bloquear</button>`}
+        ${+t.external?`<button class="btn s" data-lang="${t.id}" data-cur="${esc(t.lang||'')}">🗣 Idioma</button>`:''}
         <button class="btn d" data-delt="${t.id}">Eliminar</button></div>
+      ${+t.external?`<p style="font-size:13px;margin-top:8px;color:#8ecbff">🌐 Externa (Internet Archive) · idioma: <b>${esc(t.lang||'sin indicar')}</b>${t.rating?` · ★ ${t.rating}`:''}</p>`:''}
       ${t.lock_msg?`<p class="warn" style="font-size:13px;margin-top:8px">🔒 Bloqueada: «${esc(t.lock_msg)}»${+t.lock_weekend?' · se desbloquea sola cada fin de semana (viernes 14:00 → domingo 23:59)':' · siempre'}</p>`:''}
       <div class="skip" data-skip="${t.id}">⏭ ${t.type==='series'?`Intro de <input data-k="intro_start" value="${mmss(t.intro_start)}" placeholder="0:00"> a
         <input data-k="intro_end" value="${mmss(t.intro_end)}" placeholder="1:30"> ·`:''}
@@ -323,6 +336,15 @@ async function loadLib(){
   if(T.some(t=>t.videos.some(v=>v.status==='processing')))poll=setTimeout(pollLib,5000);
   loadDisk();
 }
+$('#extAdd').onclick=async()=>{
+  const url=$('#extUrl').value.trim(), m=$('#extMsg'); if(!url)return;
+  const nm=$('#extName').value.trim(), ym=nm.match(/\s((?:19|20)\d{2})$/);
+  $('#extAdd').disabled=true; m.style.color='var(--muted)'; m.textContent='Buscando la película…';
+  try{const r=await api('external_add',{url,lang:$('#extLang').value,query:nm.replace(/\s((?:19|20)\d{2})$/,'').trim(),year:ym?ym[1]:''},false,90000);
+    m.style.color='#46d369'; m.textContent='✓ Añadida: '+r.title+(r.found?'':' (sin ficha: usa «Buscar info»)'); $('#extUrl').value=$('#extName').value=''; loadLib()}
+  catch(err){m.style.color='#f88'; m.textContent='✗ '+err.message}
+  $('#extAdd').disabled=false;
+};
 $('#cleanBtn').onclick=async()=>{
   if(!confirm('Se borrarán del servidor los archivos que ya no pertenecen a ninguna película o serie (solo los de más de 24 h). ¿Seguir?'))return;
   try{const r=await api('cleanup');$('#cleanMsg').textContent=r.files?`Borrados ${r.files} archivos (${r.mb} MB)`:'No hay nada que limpiar'}catch(err){alert(err.message)}
@@ -335,6 +357,8 @@ $('#libBox').addEventListener('click',async e=>{
   if(d.lock){const m=prompt('Aviso que verá quien intente reproducirla:','Película reservada para el fin de semana');if(m===null||!m.trim())return;
     const wk=confirm('¿Desbloquear automáticamente cada fin de semana?\n\nAceptar: libre del viernes a las 14:00 al domingo a las 23:59.\nCancelar: bloqueada siempre hasta que la desbloquees.');
     await api('lock_save',{id:d.lock,msg:m,weekend:wk});loadLib();return}
+  if(d.lang){const l=prompt('Idioma en el que se oye (Castellano, Español latino, Inglés · subtítulos en español, Muda…)',d.cur);if(l===null)return;
+    await api('lang_save',{id:d.lang,lang:l});loadLib();return}
   if(d.unlock){if(!confirm('¿Desbloquear este título para que se pueda ver?'))return;await api('lock_save',{id:d.unlock,msg:''});loadLib();return}
   if(d.saveskip){const r=e.target.closest('.skip'), g=k=>{const i=r.querySelector(`[data-k=${k}]`);return i?secs(i.value):''};
     await api('skip_save',{id:d.saveskip,intro_start:g('intro_start'),intro_end:g('intro_end'),outro:g('outro')});

@@ -1,7 +1,7 @@
 <?php
 require __DIR__ . '/lib.php';
 need_viewer();
-$titles = db()->query('SELECT id,type,title,description,year,thumb,poster,intro_start,intro_end,outro,lock_msg,lock_weekend,created FROM titles ORDER BY created DESC')->fetchAll();
+$titles = db()->query('SELECT id,type,title,description,year,thumb,poster,intro_start,intro_end,outro,lock_msg,lock_weekend,external,lang,rating,created FROM titles ORDER BY created DESC')->fetchAll();
 $vids = db()->query("SELECT id,title_id,season,episode,name,file,duration FROM videos WHERE status='ready' ORDER BY season,episode,id")->fetchAll();
 $subs = db()->query('SELECT video_id,label,lang,file FROM subtitles ORDER BY id')->fetchAll();
 $subBy = [];
@@ -41,6 +41,8 @@ foreach ($titles as $t) {
               'year' => $t['year'] ? (int)$t['year'] : null, 'thumb' => media_url($t['thumb']), 'poster' => media_url($t['poster']), 'videos' => $vidBy[$t['id']],
               // saltar intro / créditos (segundos); outro = cuánto duran los créditos contando desde el final
               'locked' => $locked ? $t['lock_msg'] : null,
+              // externa: el vídeo está en Internet Archive; lang = idioma en el que se oye
+              'external' => (bool)$t['external'], 'lang' => $t['lang'], 'rating' => $t['rating'] !== null ? (float)$t['rating'] : null,
               'skip' => ['intro' => $t['intro_start'] !== null ? [(int)$t['intro_start'], (int)$t['intro_end']] : null,
                          'outro' => $t['outro'] !== null ? (int)$t['outro'] : null]];
 }

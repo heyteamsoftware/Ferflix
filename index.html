@@ -43,6 +43,13 @@ main.flat{margin-top:0;padding-top:70px}
 .grid .card.hasposter .cap{opacity:0;transition:opacity .2s}   /* el póster ya lleva el título: se muestra al pasar el ratón */
 .grid .card.hasposter:hover .cap{opacity:1}
 /* quién ha visto la película entera: animalitos abajo a la izquierda del póster */
+/* externas: idioma (arriba a la izquierda) y nota (arriba a la derecha) */
+.card .lg{position:absolute;top:7px;left:7px;z-index:3;max-width:calc(100% - 62px);background:#000d;color:#fff;font-size:11.5px;font-weight:800;line-height:1.2;padding:4px 8px;border-radius:4px;border-left:3px solid #8a8a8a}
+.card .lg.es{border-left-color:#e50914}.card .lg.en{border-left-color:#3b82f6}
+.card .rt{position:absolute;top:7px;right:7px;z-index:3;background:#000d;color:#f5c542;font-size:11.5px;font-weight:800;padding:4px 7px;border-radius:4px}
+.langline{margin:2px 0 10px;font-size:15px}.langline b{background:#fff;color:#000;padding:2px 9px;border-radius:4px;margin:0 6px}
+.langline small{color:var(--muted)}
+.extnote{color:var(--muted);font-size:13px;padding:0 4% 4px}
 .wby{position:absolute;left:7px;bottom:9px;display:flex;z-index:2;transition:opacity .2s}
 .wby span{width:24px;height:24px;border-radius:50%;background:#141414e6;border:1.5px solid #46d369;display:flex;align-items:center;justify-content:center;
   font-size:14px;margin-left:-7px;box-shadow:0 2px 6px #000a}
@@ -288,7 +295,7 @@ body.hasmini main{padding-bottom:120px}
 <body>
 <nav id="nav">
   <a class="logo" href="#">FERFLIX</a>
-  <a class="l on" data-f="all">Inicio</a><a class="l" data-f="series">Series</a><a class="l" data-f="movie">Películas</a>
+  <a class="l on" data-f="all">Inicio</a><a class="l" data-f="series">Series</a><a class="l" data-f="movie">Películas</a><a class="l" data-f="ext">Externas</a>
   <input id="q" type="search" placeholder="Buscar títulos">
   <div class="livenow" id="liveNow"></div>
   <button class="castb" id="castNav" title="Enviar a la tele (Chromecast)"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg></button>
@@ -630,15 +637,18 @@ async function pollProc(){
     el.style.setProperty('--p',p.progress+'%');el.querySelector('.ov b').textContent=p.progress+'%';el.querySelector('.ov small').innerHTML=procSub(p)}
   clearTimeout(procT); procT=setTimeout(pollProc,PROC.length?6000:20000);
 }
+// externas: orden por idioma (castellano, otro español, inglés, resto) y etiquetas del póster
+const langRank=l=>{l=(l||'').toLowerCase();return l.startsWith('castellano')?0:l.startsWith('espa')?1:l.startsWith('ingl')?2:3};
+const extHtml=t=>t.external?`<div class="lg ${['es','es','en',''][langRank(t.lang)]}">🗣 ${esc(t.lang||'Idioma ?')}</div>${t.rating?`<div class="rt">★ ${t.rating.toFixed(1)}</div>`:''}`:'';
 const lockHtml=t=>t.locked?`<div class="lk">🔒<small>${esc(t.locked)}</small></div>`:'';
 function card(t,v){
   const v0=v||t.videos[0], w=pct(v0);
-  return `<div class="card" style="${bg(t)}" data-t="${t.id}" ${v?`data-v="${v.id}"`:''}>${lockHtml(t)}<div class="cap">${esc(t.title)}${v&&t.type==='series'?` · T${v.season??1}:E${v.episode??'?'}`:''}</div>${w?`<div class="bar" style="width:${w}%"></div>`:''}</div>`;
+  return `<div class="card" style="${bg(t)}" data-t="${t.id}" ${v?`data-v="${v.id}"`:''}>${lockHtml(t)}${extHtml(t)}<div class="cap">${esc(t.title)}${v&&t.type==='series'?` · T${v.season??1}:E${v.episode??'?'}`:''}</div>${w?`<div class="bar" style="width:${w}%"></div>`:''}</div>`;
 }
 // tarjeta vertical para la cuadrícula: usa el póster; si no hay, la imagen horizontal recortada
 function posterCard(t){
   const img=t.poster||t.thumb, w=t.type==='movie'?pct(t.videos[0]):0;
-  return `<div class="card ${t.poster?'hasposter':''}" style="${img?`background-image:url('${esc(img)}')`:''}" data-t="${t.id}">${lockHtml(t)}<div class="cap">${esc(t.title)}</div>${w?`<div class="bar" style="width:${w}%"></div>`:''}${t.type==='movie'?'<div class="wby"></div>':''}</div>`;
+  return `<div class="card ${t.poster?'hasposter':''}" style="${img?`background-image:url('${esc(img)}')`:''}" data-t="${t.id}">${lockHtml(t)}${extHtml(t)}<div class="cap">${esc(t.title)}</div>${w?`<div class="bar" style="width:${w}%"></div>`:''}${t.type==='movie'?'<div class="wby"></div>':''}</div>`;
 }
 function gridHtml(name,items){
   if(!items.length)return'';
@@ -650,18 +660,28 @@ function rowHtml(name,items){
 }
 function render(){
   const q=QUERY.toLowerCase();
-  let list=CAT.filter(t=>(FILTER==='all'||t.type===FILTER)&&(!q||t.title.toLowerCase().includes(q)));
+  // las externas solo salen en su pestaña (y en la búsqueda, «Continuar viendo» y «Ya visto»)
+  let list=CAT.filter(t=>(FILTER==='ext'?t.external:FILTER==='all'||(t.type===FILTER&&!t.external))&&(!q||t.title.toLowerCase().includes(q)));
   if(!CAT.length&&!PROC.length){$('#app').innerHTML='<div class="empty"><h2>Todavía no hay contenido</h2><p>Sube películas o series desde el panel de administración.</p></div>';return}
   const [cont,seen]=activity(list), who=ME?`${ME.animal} ${ME.name}`:'';
   const procOf=(type,portrait)=>PROC.filter(p=>p.type===type&&(!q||p.title.toLowerCase().includes(q))).map(p=>procCard(p,portrait));
   // Pestañas Películas y Series: sin portada grande, la cuadrícula de pósters directamente arriba
+  if(FILTER==='ext'&&!q){
+    // agrupadas por idioma: primero castellano, luego el resto de español, después inglés; dentro, por nota
+    const g={}; list.forEach(t=>(g[t.lang||'Idioma sin indicar']??=[]).push(t));
+    const h=Object.keys(g).sort((a,b)=>langRank(a)-langRank(b)||a.localeCompare(b))
+      .map(l=>gridHtml('🗣 '+l,g[l].sort((a,b)=>(b.rating||0)-(a.rating||0)).map(posterCard))).join('');
+    $('#app').innerHTML='<main class="flat">'+(h?'<p class="extnote">🌐 Películas alojadas en Internet Archive. Se ven igual que las demás, pero dependen de esa web: si alguna no arranca, prueba más tarde.</p>'+h
+      :'<div class="empty" style="padding:20vh 20px"><h2>Todavía no hay películas externas</h2></div>')+'</main>';
+    applyTints(); paintWatchers(); return;
+  }
   if((FILTER==='movie'||FILTER==='series')&&!q){
     const name=FILTER==='movie'?'Películas':'Series';
     $('#app').innerHTML='<main class="flat">'+(gridHtml(name,[...procOf(FILTER,true),...list.map(posterCard)])
       ||`<div class="empty" style="padding:20vh 20px"><h2>Todavía no hay ${name.toLowerCase()}</h2></div>`)+'</main>';
     applyTints(); paintWatchers(); return;
   }
-  const hero=list.find(t=>!t.locked)||list[0]||CAT[0];
+  const hero=list.find(t=>!t.locked&&!t.external)||list[0]||CAT[0];
   let h=(hero?`<div class="hero" data-hero="${hero.id}" style="${bg(hero)}"><div class="in"><h1>${esc(hero.title)}</h1><p>${esc(hero.description)}</p>
    <div class="btns"><button class="btn w" data-play="${hero.id}">▶ Reproducir</button><button class="btn g" data-t="${hero.id}">ⓘ Más información</button></div></div></div>`
    :'<div class="hero" style="height:42vh;min-height:300px"></div>')+'<main>';
@@ -670,7 +690,7 @@ function render(){
     h+=rowHtml(`Continuar viendo · ${who}`,cont.map(x=>card(x.t,x.v)));
     h+=rowHtml(`Ya visto por ${who}`,seen.map(x=>card(x.t,x.v)));
     // Películas en cuadrícula, por orden de subida (la última subida primero; CAT ya viene así del servidor)
-    if(FILTER!=='series')h+=gridHtml('Películas',[...procOf('movie',true),...list.filter(t=>t.type==='movie').map(posterCard)]);
+    if(FILTER!=='series')h+=gridHtml('Películas',[...procOf('movie',true),...list.filter(t=>t.type==='movie'&&!t.external).map(posterCard)]);
     if(FILTER!=='movie')h+=rowHtml('Series',[...procOf('series'),...list.filter(t=>t.type==='series').map(t=>card(t))]);
   }
   $('#app').innerHTML=h+'</main>';
@@ -701,7 +721,8 @@ function openModal(t){
   const seasons=[...new Set(t.videos.map(v=>v.season??1))].sort((a,b)=>a-b);
   let h=`<div class="top" style="${bg(t)}"><button class="x" id="mx">✕</button><div class="in"><h2>${esc(t.title)}</h2><div class="btns">${t.locked?`<div class="lockmsg">🔒 ${esc(t.locked)}</div>`:`<button class="btn w" data-play="${t.id}">▶ Reproducir</button>`}
     ${t.type==='movie'&&!t.locked?`<button class="btn g" id="markMovie"></button>`:''}</div></div></div>
-  <div class="body"><div class="meta">${t.type==='series'?'Serie':'Película'}<span>${t.year??''}</span></div><p>${esc(t.description)}</p>`;
+  <div class="body"><div class="meta">${t.type==='series'?'Serie':'Película'}<span>${t.year??''}</span>${t.external&&t.rating?`<span>★ ${t.rating.toFixed(1)}</span>`:''}</div>
+  ${t.external?`<div class="langline">🗣 Idioma:<b>${esc(t.lang||'sin indicar')}</b><small>🌐 Externa · alojada en Internet Archive</small></div>`:''}<p>${esc(t.description)}</p>`;
   if(t.type==='series') h+=`<div class="eps"><h3>Episodios</h3><select id="ssel">${seasons.map(s=>`<option value="${s}">Temporada ${s}</option>`).join('')}</select><div id="eplist"></div></div>`;
   $('#box').innerHTML=h+'</div>'; $('#modal').classList.add('on'); document.body.style.overflow='hidden';
   $('#box').style.removeProperty('--tint'); tintOf(t.poster||t.thumb).then(c=>{if(c)$('#box').style.setProperty('--tint',c)});
@@ -860,10 +881,11 @@ $('#mBar').onclick=e=>{const r=e.currentTarget.getBoundingClientRect();seekTo((e
 function tryAdopt(){
   if(!CAST||cur||!CAT.length||!ME)return;
   const pl=CAST.player, id=pl.isMediaLoaded&&pl.mediaInfo&&pl.mediaInfo.contentId; if(!id)return;
-  const m=/[?&]f=([^&]+)/.exec(id); if(!m)return;
-  const file='media/'+decodeURIComponent(m[1]);
-  for(const t of CAT){const v=t.videos.find(x=>x.file===file); if(v){startVideo(t,v,{adopt:true});return}}
+  const m=/[?&]f=([^&]+)/.exec(id);
+  const file=m?'media/'+decodeURIComponent(m[1]):null;
+  for(const t of CAT){const v=t.videos.find(x=>x.file===file||x.file===id); if(v){startVideo(t,v,{adopt:true});return}}
 }
+V.addEventListener('error',()=>{if(cur&&cur.t.external&&!casting())toast2('Internet Archive no responde ahora mismo. Prueba más tarde.')});
 function toast2(m){const t=$('#toast');t.textContent=m;t.style.display='block';clearTimeout(t._h);t._h=setTimeout(()=>t.style.display='none',3000)}
 /* saltar intro / siguiente episodio / saltar créditos */
 let upTimer=null, upDismissed=false, upLeft=0;
@@ -900,7 +922,7 @@ function startVideo(t,v,opts={}){
   audIdx=0; A.pause(); A.removeAttribute('src'); applyVol();
   V.innerHTML=''; V.src=AIRPLAY&&v.signed?v.signed:v.file;
   v.subs.forEach((s,i)=>{const tr=document.createElement('track');tr.kind='subtitles';tr.label=s.label;tr.srclang=s.lang;tr.src=s.file;V.appendChild(tr)});
-  $('#ptitle').textContent=t.title+(t.type==='series'?` — T${v.season??1}:E${v.episode??'?'} ${v.name}`:'');
+  $('#ptitle').textContent=t.title+(t.type==='series'?` — T${v.season??1}:E${v.episode??'?'} ${v.name}`:'')+(t.external&&t.lang?` · 🗣 ${t.lang}`:'');
   const idx=t.videos.indexOf(v); $('#next').style.display=t.type==='series'&&idx<t.videos.length-1?'':'none';
   const saved=prog()[v.id];
   castStart=saved&&saved.t>15&&(!v.duration||saved.t<v.duration-30)?saved.t:0;

@@ -55,6 +55,17 @@ case 'lock_save':
         ->execute([$msg === '' ? null : mb_substr($msg, 0, 200), $msg !== '' && !empty($in['weekend']) ? 1 : 0, (int)($in['id'] ?? 0)]);
     out(['ok' => true]);
 
+case 'external_add':
+    // película alojada en Internet Archive: solo se guarda el enlace, la ficha y el póster
+    $u = trim((string)($in['url'] ?? ''));
+    $ident = preg_match('#archive\.org/(?:details|download|embed)/([^/?\#]+)#i', $u, $m) ? rawurldecode($m[1]) : $u;
+    $r = external_add($pdo, $ident, $in['lang'] ?? '', ($in['query'] ?? '') !== '' ? trim($in['query']) : null, ($in['year'] ?? '') !== '' ? (int)$in['year'] : null);
+    out($r, isset($r['error']) ? 400 : 200);
+
+case 'lang_save':
+    $pdo->prepare('UPDATE titles SET lang=? WHERE id=?')->execute([mb_substr(trim((string)($in['lang'] ?? '')), 0, 60) ?: null, (int)($in['id'] ?? 0)]);
+    out(['ok' => true]);
+
 case 'disk':
     // espacio del disco donde se guardan los vídeos
     out(['free' => (int)disk_free_space(MEDIA_DIR), 'total' => (int)disk_total_space(MEDIA_DIR)]);
