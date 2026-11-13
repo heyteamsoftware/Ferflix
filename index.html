@@ -690,7 +690,7 @@ const RTVE_HERE=true;   // en todos los navegadores: «Reproducir» aquí y, por
 function openRtve(r){
   const ser=r.kind==='series', here=!ser&&RTVE_HERE;
   $('#box').innerHTML=`<div class="top" style="${r.image?`background-image:url('${esc(r.image)}')`:''}"><button class="x" id="mx">✕</button><div class="in"><h2>${esc(r.title)}</h2>
-    <div class="btns">${here?`<button class="btn w" id="rtvHere">▶ Reproducir</button>`:''}<a class="btn ${here?'g':'w'}" href="${esc(r.url)}" target="_blank" rel="noopener">${here?'':'▶ '}Ver en RTVE Play ↗</a></div></div></div>
+    <div class="btns">${here?`<button class="btn w" id="rtvHere">▶ Ver aquí (prueba)</button>`:''}<a class="btn ${here?'g':'w'}" href="${esc(r.url)}" target="_blank" rel="noopener">${here?'':'▶ '}Ver en RTVE Play ↗</a></div></div></div>
     <div class="body"><div class="meta">${ser?'Serie':'Película'}<span>${r.year??''}</span>${r.minutes?`<span>${r.minutes} min</span>`:''}${r.rating?`<span>★ ${(+r.rating).toFixed(1)}</span>`:''}</div>
     ${langLine(r.lang,r.subs)}${here?`<div class="srcnote" style="background:#e8521c22;border-color:#e8521c88">▶ <b>Se ve aquí dentro</b> con el reproductor oficial de RTVE. No guarda el progreso ni sale en «Lo que han visto». Si no arranca, usa «Ver en RTVE Play ↗».</div>`:srcNote('rtve')}${r.expires?`<p style="color:#f5c542;font-size:14px">⏳ Disponible en RTVE: ${esc(rtveLeft(r))}.</p>`:''}
     <p>${esc(r.description)}</p>${r.director?`<p style="color:var(--muted);font-size:14px">Dirección: ${esc(r.director)}</p>`:''}${r.age?`<p style="color:var(--muted);font-size:13px">${esc(r.age)}</p>`:''}</div>`;
