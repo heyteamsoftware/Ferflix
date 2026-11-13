@@ -686,7 +686,7 @@ async function loadRtve(){if(RTVE)return;RTVE=[];try{const r=await fetch('api/rt
 const rtveLeft=r=>{if(!r.expires)return'';const d=Math.ceil((r.expires*1000-Date.now())/864e5);return d<=1?'último día':d<=14?`${d} días`:'hasta '+new Date(r.expires*1000).toLocaleDateString('es-ES',{day:'numeric',month:'short'})};
 const rtveCard=r=>`<div class="card hasposter" style="${r.poster?`background-image:url('${esc(r.poster)}')`:''}" data-rtve="${r.id}">${xBadges(r.lang,r.subs,r.rating,r.kind!=='series'&&RTVE_HERE?'rtveIn':'rtve',rtveLeft(r))}<div class="cap">${esc(r.title)}</div></div>`;
 // las películas de RTVE se ven aquí con su reproductor oficial (probado en Edge); en Safari se abre su web
-const RTVE_HERE=!window.WebKitPlaybackTargetAvailabilityEvent;
+const RTVE_HERE=true;   // en todos los navegadores: «Reproducir» aquí y, por si acaso, «Ver en RTVE Play ↗»
 function openRtve(r){
   const ser=r.kind==='series', here=!ser&&RTVE_HERE;
   $('#box').innerHTML=`<div class="top" style="${r.image?`background-image:url('${esc(r.image)}')`:''}"><button class="x" id="mx">✕</button><div class="in"><h2>${esc(r.title)}</h2>
