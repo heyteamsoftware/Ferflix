@@ -688,11 +688,20 @@ const rtveCard=r=>`<div class="card hasposter" style="${r.poster?`background-ima
 function openRtve(r){
   const ser=r.kind==='series';
   $('#box').innerHTML=`<div class="top" style="${r.image?`background-image:url('${esc(r.image)}')`:''}"><button class="x" id="mx">✕</button><div class="in"><h2>${esc(r.title)}</h2>
-    <div class="btns"><a class="btn w" href="${esc(r.url)}" target="_blank" rel="noopener">▶ Ver en RTVE Play ↗</a></div></div></div>
+    <div class="btns">${ser?'':`<button class="btn w" id="rtvHere">▶ Ver aquí (prueba)</button>`}<a class="btn ${ser?'w':'g'}" href="${esc(r.url)}" target="_blank" rel="noopener">${ser?'▶ ':''}Ver en RTVE Play ↗</a></div></div></div>
     <div class="body"><div class="meta">${ser?'Serie':'Película'}<span>${r.year??''}</span>${r.minutes?`<span>${r.minutes} min</span>`:''}${r.rating?`<span>★ ${(+r.rating).toFixed(1)}</span>`:''}</div>
     ${langLine(r.lang,r.subs)}${srcNote('rtve')}${r.expires?`<p style="color:#f5c542;font-size:14px">⏳ Disponible en RTVE: ${esc(rtveLeft(r))}.</p>`:''}
     <p>${esc(r.description)}</p>${r.director?`<p style="color:var(--muted);font-size:14px">Dirección: ${esc(r.director)}</p>`:''}${r.age?`<p style="color:var(--muted);font-size:13px">${esc(r.age)}</p>`:''}</div>`;
   $('#modal').classList.add('on'); document.body.style.overflow='hidden'; $('#box').style.removeProperty('--tint'); $('#mx').onclick=closeModal;
+  if(!ser)$('#rtvHere').onclick=()=>rtveHere(r);
+}
+// reproductor oficial de RTVE dentro de FerFlix (lleva DRM: necesita Chrome/Edge/Safari al día y, a veces, haber iniciado sesión en rtve.es)
+function rtveHere(r){
+  closeModal(); if(ytCur)closeYT();
+  $('#yTitle').textContent=r.title; $('#yNext').style.display='none';
+  $('#yInfo').innerHTML=`RTVE Play · si no arranca: <a href="${esc(r.url)}" target="_blank" rel="noopener" style="color:#fff">ábrela en su web ↗</a>`;
+  $('#yFrame').innerHTML=`<iframe src="https://www.rtve.es/drmn/embed/video/${encodeURIComponent(r.id)}/" allow="autoplay; encrypted-media; fullscreen; picture-in-picture" allowfullscreen></iframe>`;
+  $('#ytp').classList.add('on'); document.body.style.overflow='hidden';
 }
 const lockHtml=t=>t.locked?`<div class="lk">🔒<small>${esc(t.locked)}</small></div>`:'';
 function card(t,v){
