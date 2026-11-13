@@ -664,7 +664,7 @@ async function pollProc(){
 // externas: 0 = en castellano, 1 = versión original con subtítulos en español, 2 = el resto
 const xRank=(l,sb)=>/^castellano/i.test(l||'')?0:/espa/i.test(sb||'')?1:2;
 const X_GROUPS=['🗣 En castellano','💬 Versión original con subtítulos en español','🌐 Otros idiomas, sin subtítulos en español'];
-const SRC={archive:['','🌐 Archive'],youtube:['yt','▶ YouTube'],rtve:['rtve','↗ RTVE Play']};
+const SRC={archive:['','🌐 Archive'],youtube:['yt','▶ YouTube'],rtve:['rtve','↗ RTVE Play'],rtveIn:['rtve','▶ RTVE']};
 // chapas del póster: idioma, subtítulos, nota y de dónde viene
 function xBadges(lang,subs,rating,source,extra){
   const lc=/^castellano/i.test(lang||'')?'es':/^ingl/i.test(lang||'')?'en':'';
@@ -684,16 +684,18 @@ const langLine=(lang,subs)=>`<div class="langline">🗣 Idioma:<b>${esc(lang||'s
 let RTVE=null;
 async function loadRtve(){if(RTVE)return;RTVE=[];try{const r=await fetch('api/rtve.php');if(r.ok)RTVE=await r.json()}catch{} if(FILTER.startsWith('ext')&&!P_.classList.contains('on'))render()}
 const rtveLeft=r=>{if(!r.expires)return'';const d=Math.ceil((r.expires*1000-Date.now())/864e5);return d<=1?'último día':d<=14?`${d} días`:'hasta '+new Date(r.expires*1000).toLocaleDateString('es-ES',{day:'numeric',month:'short'})};
-const rtveCard=r=>`<div class="card hasposter" style="${r.poster?`background-image:url('${esc(r.poster)}')`:''}" data-rtve="${r.id}">${xBadges(r.lang,r.subs,r.rating,'rtve',rtveLeft(r))}<div class="cap">${esc(r.title)}</div></div>`;
+const rtveCard=r=>`<div class="card hasposter" style="${r.poster?`background-image:url('${esc(r.poster)}')`:''}" data-rtve="${r.id}">${xBadges(r.lang,r.subs,r.rating,r.kind!=='series'&&RTVE_HERE?'rtveIn':'rtve',rtveLeft(r))}<div class="cap">${esc(r.title)}</div></div>`;
+// las películas de RTVE se ven aquí con su reproductor oficial (probado en Edge); en Safari se abre su web
+const RTVE_HERE=!window.WebKitPlaybackTargetAvailabilityEvent;
 function openRtve(r){
-  const ser=r.kind==='series';
+  const ser=r.kind==='series', here=!ser&&RTVE_HERE;
   $('#box').innerHTML=`<div class="top" style="${r.image?`background-image:url('${esc(r.image)}')`:''}"><button class="x" id="mx">✕</button><div class="in"><h2>${esc(r.title)}</h2>
-    <div class="btns">${ser?'':`<button class="btn w" id="rtvHere">▶ Ver aquí (prueba)</button>`}<a class="btn ${ser?'w':'g'}" href="${esc(r.url)}" target="_blank" rel="noopener">${ser?'▶ ':''}Ver en RTVE Play ↗</a></div></div></div>
+    <div class="btns">${here?`<button class="btn w" id="rtvHere">▶ Reproducir</button>`:''}<a class="btn ${here?'g':'w'}" href="${esc(r.url)}" target="_blank" rel="noopener">${here?'':'▶ '}Ver en RTVE Play ↗</a></div></div></div>
     <div class="body"><div class="meta">${ser?'Serie':'Película'}<span>${r.year??''}</span>${r.minutes?`<span>${r.minutes} min</span>`:''}${r.rating?`<span>★ ${(+r.rating).toFixed(1)}</span>`:''}</div>
-    ${langLine(r.lang,r.subs)}${srcNote('rtve')}${r.expires?`<p style="color:#f5c542;font-size:14px">⏳ Disponible en RTVE: ${esc(rtveLeft(r))}.</p>`:''}
+    ${langLine(r.lang,r.subs)}${here?`<div class="srcnote" style="background:#e8521c22;border-color:#e8521c88">▶ <b>Se ve aquí dentro</b> con el reproductor oficial de RTVE. No guarda el progreso ni sale en «Lo que han visto». Si no arranca, usa «Ver en RTVE Play ↗».</div>`:srcNote('rtve')}${r.expires?`<p style="color:#f5c542;font-size:14px">⏳ Disponible en RTVE: ${esc(rtveLeft(r))}.</p>`:''}
     <p>${esc(r.description)}</p>${r.director?`<p style="color:var(--muted);font-size:14px">Dirección: ${esc(r.director)}</p>`:''}${r.age?`<p style="color:var(--muted);font-size:13px">${esc(r.age)}</p>`:''}</div>`;
   $('#modal').classList.add('on'); document.body.style.overflow='hidden'; $('#box').style.removeProperty('--tint'); $('#mx').onclick=closeModal;
-  if(!ser)$('#rtvHere').onclick=()=>rtveHere(r);
+  if(here)$('#rtvHere').onclick=()=>rtveHere(r);
 }
 // reproductor oficial de RTVE dentro de FerFlix (lleva DRM: necesita Chrome/Edge/Safari al día y, a veces, haber iniciado sesión en rtve.es)
 function rtveHere(r){
@@ -739,7 +741,7 @@ function render(){
       ...(RTVE||[]).filter(r=>(r.kind||'movie')===XT&&!have.has(norm(r.title))).map(r=>({k:xRank(r.lang,r.subs),r:+r.rating||0,n:r.title,h:rtveCard(r)}))];
     items.sort((a,b)=>a.k-b.k||b.r-a.r||a.n.localeCompare(b.n));
     const h=[0,1,2].map(k=>gridHtml(X_GROUPS[k],items.filter(i=>i.k===k).map(i=>i.h))).join('');
-    const legend=`<div class="extlegend"><span><i>🌐 Archive</i> <i class="yt">▶ YouTube</i> se ven aquí dentro</span><span><i class="rtve">↗ RTVE Play</i> enlace externo: se abre su web (gratis, con cuenta de RTVE)</span></div>`;
+    const legend=`<div class="extlegend"><span><i>🌐 Archive</i> <i class="yt">▶ YouTube</i> se ven aquí dentro</span><span>${XT==='movie'&&RTVE_HERE?'<i class="rtve">▶ RTVE</i> se ve aquí con el reproductor de RTVE · ':''}<i class="rtve">↗ RTVE Play</i> enlace externo: se abre su web (gratis, con cuenta de RTVE)</span></div>`;
     $('#app').innerHTML='<main class="flat">'+(h?legend+h:`<div class="empty" style="padding:20vh 20px"><h2>Todavía no hay ${XT==='movie'?'películas':'series'} externas</h2></div>`)+'</main>';
     applyTints(); paintWatchers(); return;
   }
